@@ -13,14 +13,37 @@ import (
 )
 
 func TestCheckService(t *testing.T) {
-	authz := Service{}
+	testCfg, err := initialize(&Config{
+		Providers: []OIDCProvider{
+			{
+				IssuerURL:        "http://127.0.0.1:5556/dex",
+				CallbackURI:      "http://foo.bar/callback",
+				ClientID:         "foo",
+				ClientSecret:     "bar",
+				Scopes:           []string{"openid", "profile", "email"},
+				CookieNamePrefix: "foo",
+				Match: Match{
+					HeaderName: "authority",
+					ExactMatch: "foo.bar",
+				},
+			},
+		},
+	})
+	require.NoError(t, err, "init cfg should not have failed")
 
-	req := connect.NewRequest(
+	authz := Service{cfg: testCfg}
+
+	testReq := connect.NewRequest(
 		&auth.CheckRequest{
 			Attributes: &auth.AttributeContext{
 				Request: &auth.AttributeContext_Request{
 					Http: &auth.AttributeContext_HttpRequest{
-						Host: "localhost",
+						Scheme: "http",
+						Host:   "foo.bar",
+						Path:   "/",
+						Headers: map[string]string{
+							"authority": "foo.bar",
+						},
 					},
 				},
 			},
@@ -28,7 +51,7 @@ func TestCheckService(t *testing.T) {
 	)
 
 	// Check Authorization response.
-	resp, err := authz.Check(context.TODO(), req)
+	resp, err := authz.Check(context.TODO(), testReq)
 	require.NoError(t, err, "check should not have failed")
-	assert.Equal(t, int32(rpc.OK), resp.Msg.Status.Code)
+	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.Status.Code)
 }

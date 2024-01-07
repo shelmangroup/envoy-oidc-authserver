@@ -19,6 +19,7 @@ func main() {
 	fs := flag.NewFlagSet("shelman-authz", flag.ContinueOnError)
 	addr := fs.String("listen-addr", ":8080", "address to listen on")
 	otlpAddr := fs.String("otlp-addr", ":4317", "address to send OTLP traces to")
+	config := fs.String("config", "", "oidc config file")
 	// logJson := fs.Bool("log-json", false, "log in JSON format")
 	// logLevel := fs.String("log-level", "info", "log level (debug, info, warn, error)")
 
@@ -38,8 +39,15 @@ func main() {
 	shutdown := telemetry.SetupTracing(*otlpAddr, "dev")
 	defer shutdown()
 
+	// read config file
+	c, err := authz.ConfigFromXmlFile(*config)
+	if err != nil {
+		slog.Error("Configuration error", err)
+		os.Exit(1)
+	}
+
 	// Create new server
-	s := server.NewServer(*addr, authz.NewService())
+	s := server.NewServer(*addr, authz.NewService(c))
 	defer s.Shutdown()
 
 	// Start the server

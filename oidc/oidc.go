@@ -20,7 +20,9 @@ type OIDCProvider struct {
 }
 
 // NewOIDCProvider creates a new oidc provider
-func NewOIDCProvider(ctx context.Context, clientID, clientSecret, redirectURI, issuer string, scopes []string) (*OIDCProvider, error) {
+func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes []string) (*OIDCProvider, error) {
+	ctx := context.Background()
+
 	client := &http.Client{
 		Timeout: time.Second * 5,
 		Transport: otelhttp.NewTransport(
