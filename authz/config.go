@@ -21,7 +21,7 @@ type OIDCProvider struct {
 	Scopes           []string `yaml:"scopes"`
 	CookieNamePrefix string   `yaml:"cookie_name_prefix"`
 	Match            Match    `yaml:"match"`
-	p                *oidc.OIDCProvider
+	p                oidc.UnimplementedAuthProvider
 }
 
 type Match struct {
@@ -35,6 +35,24 @@ func initialize(cfg *Config) (*Config, error) {
 	// Create OIDC providers
 	for i, c := range cfg.Providers {
 		provider, err := oidc.NewOIDCProvider(
+			c.ClientID,
+			c.ClientSecret,
+			c.CallbackURI,
+			c.IssuerURL,
+			c.Scopes,
+		)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Providers[i].p = provider
+	}
+	return cfg, nil
+}
+
+func initializeMock(cfg *Config) (*Config, error) {
+	// Create OIDC providers
+	for i, c := range cfg.Providers {
+		provider, err := oidc.NewOIDCMockProvider(
 			c.ClientID,
 			c.ClientSecret,
 			c.CallbackURI,

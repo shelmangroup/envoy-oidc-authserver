@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"buf.build/gen/go/envoyproxy/envoy/connectrpc/go/envoy/service/auth/v3/authv3connect"
 	core "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/config/core/v3"
@@ -17,11 +16,13 @@ import (
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 )
 
+const ServiceName = "shelman-authz"
+
 type Service struct {
 	authv3connect.UnimplementedAuthorizationHandler
 
 	cfg *Config
-	//FIXME: add a session store
+	//TODO: add a session store
 }
 
 func NewService(cfg *Config) *Service {
@@ -63,18 +64,17 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 }
 
 func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRequest, provider *OIDCProvider) (*auth.CheckResponse, error) {
-	//TODO: implement me
-	// 1. check if cookie exists
-	// 2. if cookie exists, check if it's valid
-	// 3. if cookie is valid, return success
-	// 4. if callback, check if code is valid
-
 	var headers []*core.HeaderValueOption
 	var sessionCookie *http.Cookie
+	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
+	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
+	if req.GetQuery() != "" {
+		requestedURL += "?" + req.GetQuery()
+	}
 
 	// check if cookie exists
 	for _, cookie := range s.getCookies(req) {
-		if strings.HasPrefix(cookie.Name, provider.CookieNamePrefix) {
+		if cookie.Name == sessionCookieName {
 			if cookie.Valid() == nil {
 				sessionCookie = cookie
 			}
@@ -82,24 +82,27 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	}
 
 	if sessionCookie == nil {
-		// set cookie and redirect to Idp
+		// TODO: create a new session in session store
+		// TODO: save requestedURL in session store
+		headers = append(headers, s.setRedirectHeader(provider.p.IdpAuthURL()))
+
+		// set cookie with session id and redirect to Idp
 		cookie := &http.Cookie{
-			Name:     provider.CookieNamePrefix + "randomstring",
-			Value:    "somevalue",
+			Name:     sessionCookieName,
+			Value:    "<sessionid>",
 			Path:     "/",
 			HttpOnly: true,
 			Secure:   true,
+			SameSite: http.SameSiteStrictMode,
 		}
-		// set cookie header
 		headers = append(headers, s.setCookie(cookie))
-		// redirect to Idp
-		headers = append(headers, s.setRedirectHeader(provider))
-
+		// set downstream headers and redirect to Idp
 		return s.buildResponse(false, envoy_type.StatusCode_Found, headers, "redirect to Idp"), nil
 	}
 
-	fullURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
-	if fullURL == provider.CallbackURI {
+	// TODO: find session in session store and initialize it
+
+	if requestedURL == provider.CallbackURI {
 		code, err := s.getCodeQueryParam(req.GetQuery())
 		if err != nil {
 			return nil, err
@@ -108,8 +111,14 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 		if err != nil {
 			return nil, err
 		}
-		// next: store tokens in redis?
+		// TODO: store tokens in session store
+
+		// set downstream headers and redirect client to requested URL from session store
+		headers = append(headers, s.setRedirectHeader("<TODO: session store requestedURL>"))
+		return s.buildResponse(false, envoy_type.StatusCode_Found, headers, "redirect to requested url"), nil
 	}
+
+	// TODO: get tokens from store and refresh if needed abd set upstream auth headers and return success response
 
 	// default denied response
 	return s.buildResponse(false, envoy_type.StatusCode_Unauthorized, nil, "permission denied"), nil
@@ -133,11 +142,20 @@ func (s *Service) setCookie(cookie *http.Cookie) *core.HeaderValueOption {
 	}
 }
 
-func (s *Service) setRedirectHeader(provider *OIDCProvider) *core.HeaderValueOption {
+func (s *Service) setRedirectHeader(location string) *core.HeaderValueOption {
 	return &core.HeaderValueOption{
 		Header: &core.HeaderValue{
 			Key:   "Location",
-			Value: provider.p.IdpAuthURL(),
+			Value: location,
+		},
+	}
+}
+
+func (s *Service) setAuthorizationHeader(token string) *core.HeaderValueOption {
+	return &core.HeaderValueOption{
+		Header: &core.HeaderValue{
+			Key:   "Authorization",
+			Value: "Bearer " + token,
 		},
 	}
 }

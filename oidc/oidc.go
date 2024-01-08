@@ -15,7 +15,16 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
+// Create auth provicer interface
+type UnimplementedAuthProvider interface {
+	IdpAuthURL() string
+	RetriveTokens(ctx context.Context, code string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
+	RefreshTokens(ctx context.Context, refreshToken, clientAssertion string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
+}
+
 type OIDCProvider struct {
+	UnimplementedAuthProvider
+
 	provider rp.RelyingParty
 }
 

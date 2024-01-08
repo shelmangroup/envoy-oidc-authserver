@@ -14,10 +14,10 @@ import (
 )
 
 func TestCheckService(t *testing.T) {
-	testCfg, err := initialize(&Config{
+	testCfg, err := initializeMock(&Config{
 		Providers: []OIDCProvider{
 			{
-				IssuerURL:        "http://127.0.0.1:5556/dex",
+				IssuerURL:        "http://mock.idp/auth",
 				CallbackURI:      "http://foo.bar/callback",
 				ClientID:         "foo",
 				ClientSecret:     "bar",
@@ -34,7 +34,8 @@ func TestCheckService(t *testing.T) {
 
 	authz := Service{cfg: testCfg}
 
-	testReq := connect.NewRequest(
+	// Check Authorization response without callback and no cookie req.
+	noCookieReq := connect.NewRequest(
 		&auth.CheckRequest{
 			Attributes: &auth.AttributeContext{
 				Request: &auth.AttributeContext_Request{
@@ -51,11 +52,34 @@ func TestCheckService(t *testing.T) {
 			},
 		},
 	)
-
-	// Check Authorization response.
-	resp, err := authz.Check(context.TODO(), testReq)
+	resp, err := authz.Check(context.TODO(), noCookieReq)
 	require.NoError(t, err, "check should not have failed")
 	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.Status.Code)
 	// redirect to Idp should happen
 	assert.Equal(t, envoy_type.StatusCode_Found, resp.Msg.GetDeniedResponse().GetStatus().GetCode())
+	assert.Equal(t, testCfg.Providers[0].p.IdpAuthURL(), resp.Msg.GetDeniedResponse().GetHeaders()[0].GetHeader().GetValue())
+
+	// Check Authorization response with callback and cookie req.
+	cookieReq := connect.NewRequest(
+		&auth.CheckRequest{
+			Attributes: &auth.AttributeContext{
+				Request: &auth.AttributeContext_Request{
+					Http: &auth.AttributeContext_HttpRequest{
+						Scheme: "http",
+						Host:   "foo.bar",
+						Path:   "/callback",
+						Headers: map[string]string{
+							"authority": "foo.bar",
+							"Cookie":    "foo123=bar",
+						},
+					},
+				},
+			},
+		},
+	)
+	resp, err = authz.Check(context.TODO(), cookieReq)
+	require.NoError(t, err, "check with callback should not have failed")
+	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.Status.Code)
+	// Should redirect to requested URL
+	// assert.Equal(t, testCfg.Providers[0].CallbackURI, resp.Msg.GetDeniedResponse().GetHeaders()[1].GetHeader().GetValue())
 }
