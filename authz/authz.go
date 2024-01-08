@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"buf.build/gen/go/envoyproxy/envoy/connectrpc/go/envoy/service/auth/v3/authv3connect"
 	core "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/config/core/v3"
@@ -63,6 +64,40 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 
 func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRequest, provider *OIDCProvider) (*auth.CheckResponse, error) {
 	//TODO: implement me
+	// 1. check if cookie exists
+	// 2. if cookie exists, check if it's valid
+	// 3. if cookie is valid, return success
+	// 4. if callback, check if code is valid
+
+	var headers []*core.HeaderValueOption
+	var sessionCookie *http.Cookie
+
+	// check if cookie exists
+	for _, cookie := range s.getCookies(req) {
+		if strings.HasPrefix(cookie.Name, provider.CookieNamePrefix) {
+			if cookie.Valid() == nil {
+				sessionCookie = cookie
+			}
+		}
+	}
+
+	if sessionCookie == nil {
+		// set cookie and redirect to Idp
+		cookie := &http.Cookie{
+			Name:     provider.CookieNamePrefix + "randomstring",
+			Value:    "somevalue",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+		}
+		// set cookie header
+		headers = append(headers, s.setCookie(cookie))
+		// redirect to Idp
+		headers = append(headers, s.setRedirectHeader(provider))
+
+		return s.buildResponse(false, envoy_type.StatusCode_Found, headers, "redirect to Idp"), nil
+	}
+
 	fullURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
 	if fullURL == provider.CallbackURI {
 		code, err := s.getCodeQueryParam(req.GetQuery())
@@ -80,11 +115,29 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	return s.buildResponse(false, envoy_type.StatusCode_Unauthorized, nil, "permission denied"), nil
 }
 
+// parse cookie header string into []*http.Cookie struct
+func (s *Service) getCookies(req *auth.AttributeContext_HttpRequest) []*http.Cookie {
+	cookieRaw := req.GetHeaders()["Cookie"]
+	header := http.Header{}
+	header.Add("Cookie", cookieRaw)
+	r := http.Request{Header: header}
+	return r.Cookies()
+}
+
 func (s *Service) setCookie(cookie *http.Cookie) *core.HeaderValueOption {
 	return &core.HeaderValueOption{
 		Header: &core.HeaderValue{
 			Key:   "Set-Cookie",
 			Value: cookie.String(),
+		},
+	}
+}
+
+func (s *Service) setRedirectHeader(provider *OIDCProvider) *core.HeaderValueOption {
+	return &core.HeaderValueOption{
+		Header: &core.HeaderValue{
+			Key:   "Location",
+			Value: provider.p.IdpAuthURL(),
 		},
 	}
 }

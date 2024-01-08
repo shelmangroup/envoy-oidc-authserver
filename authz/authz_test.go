@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	auth "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/service/auth/v3"
+	envoy_type "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/type/v3"
 )
 
 func TestCheckService(t *testing.T) {
@@ -43,6 +44,7 @@ func TestCheckService(t *testing.T) {
 						Path:   "/",
 						Headers: map[string]string{
 							"authority": "foo.bar",
+							//"Cookie":    "foo123=bar",
 						},
 					},
 				},
@@ -54,4 +56,6 @@ func TestCheckService(t *testing.T) {
 	resp, err := authz.Check(context.TODO(), testReq)
 	require.NoError(t, err, "check should not have failed")
 	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.Status.Code)
+	// redirect to Idp should happen
+	assert.Equal(t, envoy_type.StatusCode_Found, resp.Msg.GetDeniedResponse().GetStatus().GetCode())
 }
