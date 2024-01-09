@@ -97,7 +97,7 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 		}
 		headers = append(headers, s.setCookie(cookie))
 		// set downstream headers and redirect to Idp
-		return s.buildResponse(false, envoy_type.StatusCode_Found, headers, "redirect to Idp"), nil
+		return s.response(false, envoy_type.StatusCode_Found, headers, "redirect to Idp"), nil
 	}
 
 	// TODO: find session in session store and initialize it
@@ -115,13 +115,13 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 
 		// set downstream headers and redirect client to requested URL from session store
 		headers = append(headers, s.setRedirectHeader("<TODO: session store requestedURL>"))
-		return s.buildResponse(false, envoy_type.StatusCode_Found, headers, "redirect to requested url"), nil
+		return s.response(false, envoy_type.StatusCode_Found, headers, "redirect to requested url"), nil
 	}
 
 	// TODO: get tokens from store and refresh if needed abd set upstream auth headers and return success response
 
 	// default denied response
-	return s.buildResponse(false, envoy_type.StatusCode_Unauthorized, nil, "permission denied"), nil
+	return s.response(false, envoy_type.StatusCode_Unauthorized, nil, "permission denied"), nil
 }
 
 // parse cookie header string into []*http.Cookie struct
@@ -169,7 +169,7 @@ func (s *Service) getCodeQueryParam(queryString string) (string, error) {
 	return code, nil
 }
 
-func (s *Service) buildResponse(success bool, httpStatusCode envoy_type.StatusCode, headers []*core.HeaderValueOption, body string) *auth.CheckResponse {
+func (s *Service) response(success bool, httpStatusCode envoy_type.StatusCode, headers []*core.HeaderValueOption, body string) *auth.CheckResponse {
 	var resp *auth.CheckResponse
 
 	if success {
