@@ -49,24 +49,6 @@ func initialize(cfg *Config) (*Config, error) {
 	return cfg, nil
 }
 
-func initializeMock(cfg *Config) (*Config, error) {
-	// Create OIDC providers
-	for i, c := range cfg.Providers {
-		provider, err := oidc.NewOIDCMockProvider(
-			c.ClientID,
-			c.ClientSecret,
-			c.CallbackURI,
-			c.IssuerURL,
-			c.Scopes,
-		)
-		if err != nil {
-			return nil, err
-		}
-		cfg.Providers[i].p = provider
-	}
-	return cfg, nil
-}
-
 func ConfigFromXmlFile(filename string) (*Config, error) {
 	f, err := os.Open(filename)
 	if err != nil {

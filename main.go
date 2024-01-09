@@ -12,6 +12,7 @@ import (
 
 	"github.com/shelmangroup/shelman-authz/authz"
 	"github.com/shelmangroup/shelman-authz/server"
+	"github.com/shelmangroup/shelman-authz/store"
 	"github.com/shelmangroup/shelman-authz/telemetry"
 )
 
@@ -46,8 +47,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	//init session store
+	sessionStore := store.NewSessionStore(nil, 0)
+
 	// Create new server
-	s := server.NewServer(*addr, authz.NewService(c))
+	s := server.NewServer(*addr, authz.NewService(c, sessionStore))
 	defer s.Shutdown()
 
 	// Start the server

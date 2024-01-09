@@ -2,8 +2,10 @@ package oidc
 
 import (
 	"context"
+	"time"
 
 	"github.com/zitadel/oidc/v3/pkg/oidc"
+	"golang.org/x/oauth2"
 )
 
 type OIDCMockProvider struct {
@@ -24,6 +26,11 @@ func (o *OIDCMockProvider) IdpAuthURL() string {
 // `code` is the `code` query parameter from the idp callback redirect
 func (o *OIDCMockProvider) RetriveTokens(ctx context.Context, code string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
 	return &oidc.Tokens[*oidc.IDTokenClaims]{
+		Token: &oauth2.Token{
+			AccessToken:  "foo",
+			RefreshToken: "bar",
+			Expiry:       time.Now().Add(1 * time.Hour),
+		},
 		IDToken: "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTA2MTI5MDIyfQ",
 	}, nil
 }
@@ -31,5 +38,12 @@ func (o *OIDCMockProvider) RetriveTokens(ctx context.Context, code string) (*oid
 // RefreshTokens refreshes the tokens and returns them
 // clientAssertion is the client assertion jwt (tokens.AccessToken)
 func (o *OIDCMockProvider) RefreshTokens(ctx context.Context, refreshToken, clientAssertion string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
-	return &oidc.Tokens[*oidc.IDTokenClaims]{}, nil
+	return &oidc.Tokens[*oidc.IDTokenClaims]{
+		Token: &oauth2.Token{
+			AccessToken:  "foo",
+			RefreshToken: "bar",
+			Expiry:       time.Now().Add(2 * time.Hour),
+		},
+		IDToken: "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaW1111111111111111asda",
+	}, nil
 }

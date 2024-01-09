@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"time"
 
 	"buf.build/gen/go/envoyproxy/envoy/connectrpc/go/envoy/service/auth/v3/authv3connect"
 	core "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/config/core/v3"
@@ -14,6 +15,8 @@ import (
 	"connectrpc.com/otelconnect"
 	"github.com/gogo/googleapis/google/rpc"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
+
+	"github.com/shelmangroup/shelman-authz/store"
 )
 
 const ServiceName = "shelman-authz"
@@ -21,13 +24,14 @@ const ServiceName = "shelman-authz"
 type Service struct {
 	authv3connect.UnimplementedAuthorizationHandler
 
-	cfg *Config
-	//TODO: add a session store
+	cfg   *Config
+	store *store.SessionStore
 }
 
-func NewService(cfg *Config) *Service {
+func NewService(cfg *Config, store *store.SessionStore) *Service {
 	return &Service{
-		cfg: cfg,
+		cfg:   cfg,
+		store: store,
 	}
 }
 
@@ -66,6 +70,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRequest, provider *OIDCProvider) (*auth.CheckResponse, error) {
 	var headers []*core.HeaderValueOption
 	var sessionCookie *http.Cookie
+	sessionData := &store.SessionData{}
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
 	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
 	if req.GetQuery() != "" {
@@ -82,46 +87,110 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	}
 
 	if sessionCookie == nil {
-		// TODO: create a new session in session store
-		// TODO: save requestedURL in session store
-		headers = append(headers, s.setRedirectHeader(provider.p.IdpAuthURL()))
+		sessionCookieToken, err := store.GenerateSessionToken()
+		if err != nil {
+			return nil, err
+		}
+		sessionData.SetRequestedURL(requestedURL)
+		err = s.store.Set(ctx, sessionCookieToken, sessionData)
+		if err != nil {
+			return nil, err
+		}
 
+		headers = append(headers, s.setRedirectHeader(provider.p.IdpAuthURL()))
 		// set cookie with session id and redirect to Idp
 		cookie := &http.Cookie{
 			Name:     sessionCookieName,
-			Value:    "<sessionid>",
+			Domain:   req.GetHost(),
+			Value:    sessionCookieToken,
 			Path:     "/",
 			HttpOnly: true,
 			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
+			SameSite: http.SameSiteLaxMode,
 		}
-		headers = append(headers, s.setCookie(cookie))
+		headers = append(headers, s.setCookie(cookie)...)
 		// set downstream headers and redirect to Idp
 		return s.response(false, envoy_type.StatusCode_Found, headers, "redirect to Idp"), nil
 	}
 
-	// TODO: find session in session store and initialize it
+	// get session data from store
+	sessionData, _, err := s.store.Get(ctx, sessionCookie.Value)
+	if err != nil {
+		return nil, err
+	}
 
 	if requestedURL == provider.CallbackURI {
 		code, err := s.getCodeQueryParam(req.GetQuery())
 		if err != nil {
 			return nil, err
 		}
-		_, err = provider.p.RetriveTokens(ctx, code)
+		tokens, err := provider.p.RetriveTokens(ctx, code)
 		if err != nil {
 			return nil, err
 		}
-		// TODO: store tokens in session store
+		sessionData.SetTokens(
+			&store.Tokens{
+				RefreshToken: tokens.RefreshToken,
+				AccessToken:  tokens.AccessToken,
+				IDToken:      tokens.IDToken,
+				Expiry:       tokens.Expiry,
+			},
+		)
+		err = s.store.Set(ctx, sessionCookie.Value, sessionData)
+		if err != nil {
+			return nil, err
+		}
 
 		// set downstream headers and redirect client to requested URL from session store
-		headers = append(headers, s.setRedirectHeader("<TODO: session store requestedURL>"))
+		headers = append(headers, s.setRedirectHeader(sessionData.GetRequestedURL()))
 		return s.response(false, envoy_type.StatusCode_Found, headers, "redirect to requested url"), nil
 	}
 
-	// TODO: get tokens from store and refresh if needed abd set upstream auth headers and return success response
+	tokens := sessionData.GetTokens()
+	newTokens, updated, err := s.validateToken(ctx, provider, tokens)
+	if err != nil {
+		return nil, err
+	}
+	if updated {
+		// Update the session data with the new tokens
+		sessionData.SetTokens(newTokens)
+		err = s.store.Set(ctx, sessionCookie.Value, sessionData)
+		if err != nil {
+			return nil, err
+		}
+		tokens = newTokens
+	}
 
-	// default denied response
-	return s.response(false, envoy_type.StatusCode_Unauthorized, nil, "permission denied"), nil
+	headers = append(headers, s.setAuthorizationHeader(tokens.IDToken))
+	return s.response(true, envoy_type.StatusCode_OK, headers, "success"), nil
+}
+
+// Validates and poteintially refreshes the token
+func (s *Service) validateToken(ctx context.Context, provider *OIDCProvider, tokens *store.Tokens) (*store.Tokens, bool, error) {
+	//Validate token
+	if tokens.AccessToken != "" && !expired(tokens.Expiry) {
+		return tokens, false, nil
+	}
+
+	t, err := provider.p.RefreshTokens(ctx, tokens.RefreshToken, tokens.AccessToken)
+	if err != nil {
+		return nil, false, err
+	}
+	return &store.Tokens{
+		RefreshToken: t.RefreshToken,
+		AccessToken:  t.AccessToken,
+		IDToken:      t.IDToken,
+		Expiry:       t.Expiry,
+	}, true, nil
+}
+
+// check if token is expired
+func expired(expiry time.Time) bool {
+	if expiry.IsZero() {
+		return false
+	}
+	expiryDelta := 10 * time.Second
+	return expiry.Round(0).Add(-expiryDelta).Before(time.Now())
 }
 
 // parse cookie header string into []*http.Cookie struct
@@ -133,11 +202,19 @@ func (s *Service) getCookies(req *auth.AttributeContext_HttpRequest) []*http.Coo
 	return r.Cookies()
 }
 
-func (s *Service) setCookie(cookie *http.Cookie) *core.HeaderValueOption {
-	return &core.HeaderValueOption{
-		Header: &core.HeaderValue{
-			Key:   "Set-Cookie",
-			Value: cookie.String(),
+func (s *Service) setCookie(cookie *http.Cookie) []*core.HeaderValueOption {
+	return []*core.HeaderValueOption{
+		{
+			Header: &core.HeaderValue{
+				Key:   "Cache-Control",
+				Value: `no-cache="Set-Cookie"`,
+			},
+		},
+		{
+			Header: &core.HeaderValue{
+				Key:   "Set-Cookie",
+				Value: cookie.String(),
+			},
 		},
 	}
 }

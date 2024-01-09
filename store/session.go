@@ -1,7 +1,11 @@
 package store
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/gob"
 	"time"
 )
 
@@ -18,7 +22,7 @@ func NewSessionStore(store Store, lifetime time.Duration) *SessionStore {
 	}
 
 	if store == nil {
-		store = NewMemStore()
+		store = NewWithCleanupInterval(10 * time.Minute)
 	}
 
 	return &SessionStore{
@@ -27,14 +31,37 @@ func NewSessionStore(store Store, lifetime time.Duration) *SessionStore {
 	}
 }
 
-func (s *SessionStore) Get(ctx context.Context, token string) ([]byte, bool, error) {
-	return s.store.Get(token)
+func (s *SessionStore) Get(ctx context.Context, token string) (*SessionData, bool, error) {
+	b, found, err := s.store.Get(token)
+	if err != nil {
+		return nil, false, err
+	}
+	d := &SessionData{}
+	r := bytes.NewReader(b)
+	if err := gob.NewDecoder(r).Decode(d); err != nil {
+		return nil, false, err
+	}
+	return d, found, nil
 }
 
-func (s *SessionStore) Set(ctx context.Context, token string, b []byte) error {
-	return s.store.Set(token, b, time.Now().Add(s.Lifetime))
+func (s *SessionStore) Set(ctx context.Context, token string, d *SessionData) error {
+	//gob encode struct
+	var b bytes.Buffer
+	if err := gob.NewEncoder(&b).Encode(d); err != nil {
+		return err
+	}
+	return s.store.Set(token, b.Bytes(), time.Now().Add(s.Lifetime))
 }
 
 func (s *SessionStore) Delete(ctx context.Context, token string) error {
 	return s.store.Delete(token)
+}
+
+func GenerateSessionToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
