@@ -16,8 +16,8 @@ type Config struct {
 }
 
 type OIDCProvider struct {
-	CallbackURI      string   `yaml:"callbackURI"`
 	IssuerURL        string   `yaml:"issuerURL"`
+	CallbackURI      string   `yaml:"callbackURI"`
 	ClientID         string   `yaml:"clientID"`
 	ClientSecret     string   `yaml:"clientSecret"`
 	Scopes           []string `yaml:"scopes"`

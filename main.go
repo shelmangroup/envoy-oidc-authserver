@@ -51,7 +51,7 @@ func main() {
 	// read config file
 	c, err := authz.ConfigFromXmlFile(*providersConfig)
 	if err != nil {
-		slog.Error("Provider Configuration error", err)
+		slog.Error("Provider configuration error", err)
 		os.Exit(1)
 	}
 

@@ -50,7 +50,6 @@ func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes 
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
 		rp.WithHTTPClient(client),
-		// rp.WithLogger(logger),
 	}
 	if clientSecret == "" {
 		options = append(options, rp.WithPKCE(cookieHandler))
@@ -79,7 +78,7 @@ func (o *OIDCProvider) RetriveTokens(ctx context.Context, code string) (*oidc.To
 	}
 
 	if !tokens.Valid() {
-		return nil, errors.New("invalid token")
+		return nil, errors.New("RetriveTokens: invalid token")
 	}
 
 	return tokens, nil
@@ -91,6 +90,9 @@ func (o *OIDCProvider) RefreshTokens(ctx context.Context, refreshToken, clientAs
 	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.provider, refreshToken, clientAssertion, oidc.ClientAssertionTypeJWTAssertion)
 	if err != nil {
 		return nil, err
+	}
+	if !tokens.Valid() {
+		return nil, errors.New("RefreshTokens: invalid token")
 	}
 	return tokens, nil
 }
