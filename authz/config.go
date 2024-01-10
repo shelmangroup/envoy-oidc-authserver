@@ -1,34 +1,35 @@
 package authz
 
 import (
-	"encoding/xml"
 	"os"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/shelmangroup/shelman-authz/oidc"
 )
 
 type Config struct {
-	Providers []OIDCProvider `yaml:"oidc"`
+	Providers []OIDCProvider `yaml:"providers"`
 }
 
 type OIDCProvider struct {
-	IssuerURL        string   `yaml:"issuer_url"`
-	CallbackURI      string   `yaml:"callback_uri"`
-	ClientID         string   `yaml:"client_id"`
-	ClientSecret     string   `yaml:"client_secret"`
+	CallbackURI      string   `yaml:"callbackURI"`
+	IssuerURL        string   `yaml:"issuerURL"`
+	ClientID         string   `yaml:"clientID"`
+	ClientSecret     string   `yaml:"clientSecret"`
 	Scopes           []string `yaml:"scopes"`
-	CookieNamePrefix string   `yaml:"cookie_name_prefix"`
+	CookieNamePrefix string   `yaml:"cookieNamePrefix"`
 	Match            Match    `yaml:"match"`
 	p                oidc.UnimplementedAuthProvider
 }
 
 type Match struct {
-	HeaderName  string `yaml:"header_name"`
-	ExactMatch  string `yaml:"exact_match"`
-	RegexMatch  string `yaml:"regex_match"`
-	PrefixMatch string `yaml:"prefix_match"`
+	HeaderName  string `yaml:"header"`
+	ExactMatch  string `yaml:"exact"`
+	RegexMatch  string `yaml:"regex"`
+	PrefixMatch string `yaml:"prefix"`
 }
 
 func initialize(cfg *Config) (*Config, error) {
@@ -50,14 +51,13 @@ func initialize(cfg *Config) (*Config, error) {
 }
 
 func ConfigFromXmlFile(filename string) (*Config, error) {
-	f, err := os.Open(filename)
+	buf, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 
 	var cfg Config
-	if err := xml.NewDecoder(f).Decode(&cfg); err != nil {
+	if err := yaml.Unmarshal(buf, &cfg); err != nil {
 		return nil, err
 	}
 
