@@ -91,6 +91,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 						Scheme: "http",
 						Host:   "foo.bar",
 						Path:   "/callback",
+						Query:  "code=1234",
 						Headers: map[string]string{
 							"authority": "foo.bar",
 							"Cookie":    cookie,

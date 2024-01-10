@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -35,6 +36,7 @@ type Match struct {
 func initialize(cfg *Config) (*Config, error) {
 	// Create OIDC providers
 	for i, c := range cfg.Providers {
+		slog.Info("Configuring OIDC provider", slog.String("issuer", c.IssuerURL))
 		provider, err := oidc.NewOIDCProvider(
 			c.ClientID,
 			c.ClientSecret,

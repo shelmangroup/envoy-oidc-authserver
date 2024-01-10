@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -73,14 +74,12 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	sessionData := &store.SessionData{}
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
 	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
-	if req.GetQuery() != "" {
-		requestedURL += "?" + req.GetQuery()
-	}
 
 	// check if cookie exists
 	for _, cookie := range s.getCookies(req) {
 		if cookie.Name == sessionCookieName {
 			if cookie.Valid() == nil {
+				slog.Debug("cookie is valid")
 				sessionCookie = cookie
 			}
 		}
@@ -91,7 +90,12 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 		if err != nil {
 			return nil, err
 		}
+
+		if req.GetQuery() != "" {
+			requestedURL += "?" + req.GetQuery()
+		}
 		sessionData.SetRequestedURL(requestedURL)
+
 		err = s.store.Set(ctx, sessionCookieToken, sessionData)
 		if err != nil {
 			return nil, err
@@ -114,6 +118,7 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	}
 
 	// get session data from store
+	slog.Debug("getting session data from store", slog.String("session_id", sessionCookie.Value))
 	sessionData, _, err := s.store.Get(ctx, sessionCookie.Value)
 	if err != nil {
 		return nil, err
@@ -124,6 +129,7 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 		if err != nil {
 			return nil, err
 		}
+		slog.Debug("retriving token", slog.String("authorization_code", code))
 		tokens, err := provider.p.RetriveTokens(ctx, code)
 		if err != nil {
 			return nil, err
@@ -136,12 +142,14 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 				Expiry:       tokens.Expiry,
 			},
 		)
+		slog.Debug("successfully acquried tokens, now storing it to session store", slog.String("expire", tokens.Expiry.String()))
 		err = s.store.Set(ctx, sessionCookie.Value, sessionData)
 		if err != nil {
 			return nil, err
 		}
 
 		// set downstream headers and redirect client to requested URL from session store
+		slog.Debug("redirecting client to first requested URL", slog.String("url", sessionData.GetRequestedURL()))
 		headers = append(headers, s.setRedirectHeader(sessionData.GetRequestedURL()))
 		return s.response(false, envoy_type.StatusCode_Found, headers, "redirect to requested url"), nil
 	}
@@ -153,6 +161,7 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	}
 	if updated {
 		// Update the session data with the new tokens
+		slog.Debug("Token refreshed updating in store", slog.String("expire", newTokens.Expiry.String()))
 		sessionData.SetTokens(newTokens)
 		err = s.store.Set(ctx, sessionCookie.Value, sessionData)
 		if err != nil {
@@ -162,6 +171,7 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	}
 
 	headers = append(headers, s.setAuthorizationHeader(tokens.IDToken))
+	slog.Debug("token ok, carry on!", slog.String("session_id", sessionCookie.Value))
 	return s.response(true, envoy_type.StatusCode_OK, headers, "success"), nil
 }
 
