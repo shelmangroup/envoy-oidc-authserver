@@ -44,9 +44,9 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 				ClientSecret:     "bar",
 				Scopes:           []string{"openid", "profile", "email"},
 				CookieNamePrefix: "foo",
-				Match: Match{
-					HeaderName: "authority",
-					ExactMatch: "foo.bar",
+				HeaderMatch: HeaderMatch{
+					Name:  "authority",
+					Exact: "foo.bar",
 				},
 			},
 		},

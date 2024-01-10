@@ -16,21 +16,22 @@ type Config struct {
 }
 
 type OIDCProvider struct {
-	IssuerURL        string   `yaml:"issuerURL"`
-	CallbackURI      string   `yaml:"callbackURI"`
-	ClientID         string   `yaml:"clientID"`
-	ClientSecret     string   `yaml:"clientSecret"`
-	Scopes           []string `yaml:"scopes"`
-	CookieNamePrefix string   `yaml:"cookieNamePrefix"`
-	Match            Match    `yaml:"match"`
-	p                oidc.UnimplementedAuthProvider
+	p oidc.UnimplementedAuthProvider
+
+	IssuerURL        string      `yaml:"issuerURL"`
+	CallbackURI      string      `yaml:"callbackURI"`
+	ClientID         string      `yaml:"clientID"`
+	ClientSecret     string      `yaml:"clientSecret"`
+	Scopes           []string    `yaml:"scopes"`
+	CookieNamePrefix string      `yaml:"cookieNamePrefix"`
+	HeaderMatch      HeaderMatch `yaml:"headerMatch"`
 }
 
-type Match struct {
-	HeaderName  string `yaml:"header"`
-	ExactMatch  string `yaml:"exact"`
-	RegexMatch  string `yaml:"regex"`
-	PrefixMatch string `yaml:"prefix"`
+type HeaderMatch struct {
+	Name   string `yaml:"name"`
+	Exact  string `yaml:"exact"`
+	Regex  string `yaml:"regex"`
+	Prefix string `yaml:"prefix"`
 }
 
 func initialize(cfg *Config) (*Config, error) {
@@ -73,13 +74,13 @@ func ConfigFromXmlFile(filename string) (*Config, error) {
 
 func (c *Config) Match(headerName, headerValue string) *OIDCProvider {
 	for _, p := range c.Providers {
-		if p.Match.HeaderName == headerName {
+		if strings.ToLower(p.HeaderMatch.Name) == strings.ToLower(headerName) {
 			switch {
-			case p.Match.ExactMatch == headerValue:
+			case p.HeaderMatch.Exact == headerValue:
 				return &p
-			case p.Match.RegexMatch != "" && regexp.MustCompile(p.Match.RegexMatch).MatchString(headerValue):
+			case p.HeaderMatch.Regex != "" && regexp.MustCompile(p.HeaderMatch.Regex).MatchString(headerValue):
 				return &p
-			case p.Match.PrefixMatch != "" && strings.HasPrefix(headerValue, p.Match.PrefixMatch):
+			case p.HeaderMatch.Prefix != "" && strings.HasPrefix(headerValue, p.HeaderMatch.Prefix):
 				return &p
 			}
 		}
