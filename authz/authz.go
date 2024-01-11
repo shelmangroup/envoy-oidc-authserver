@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"buf.build/gen/go/envoyproxy/envoy/connectrpc/go/envoy/service/auth/v3/authv3connect"
@@ -50,6 +51,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	var provider *OIDCProvider
 
 	for k, v := range httpReq.GetHeaders() {
+		slog.Debug("matching headers", slog.String("key", k), slog.String("value", v))
 		provider = s.cfg.Match(k, v)
 		if provider != nil {
 			break
@@ -57,6 +59,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	}
 
 	if provider == nil {
+		slog.Debug("no header matches any provider")
 		return nil, errors.New("no header matches any provider")
 	}
 
@@ -74,25 +77,15 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	sessionData := &store.SessionData{}
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
 	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
+	slog.Debug("requestedURL", slog.String("requestedURL", requestedURL))
 
 	// check if cookie exists
-	for _, cookie := range s.getCookies(req) {
-		if cookie.Name == sessionCookieName {
-			if cookie.Valid() == nil {
-				slog.Debug("cookie is valid")
-				sessionCookie = cookie
-			}
-		}
-	}
-
-	if sessionCookie == nil {
+	sessionCookie, found := s.getSessionCookie(req, sessionCookieName)
+	if !found {
+		slog.Debug("cookie not found, redirecting to Idp")
 		sessionCookieToken, err := store.GenerateSessionToken()
 		if err != nil {
 			return nil, err
-		}
-
-		if req.GetQuery() != "" {
-			requestedURL += "?" + req.GetQuery()
 		}
 		sessionData.SetRequestedURL(requestedURL)
 
@@ -105,7 +98,6 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 		// set cookie with session id and redirect to Idp
 		cookie := &http.Cookie{
 			Name:     sessionCookieName,
-			Domain:   req.GetHost(),
 			Value:    sessionCookieToken,
 			Path:     "/",
 			HttpOnly: true,
@@ -119,13 +111,17 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 
 	// get session data from store
 	slog.Debug("getting session data from store", slog.String("session_id", sessionCookie.Value))
-	sessionData, _, err := s.store.Get(ctx, sessionCookie.Value)
+	sessionData, found, err := s.store.Get(ctx, sessionCookie.Value)
 	if err != nil {
 		return nil, err
 	}
+	if !found {
+		// FIXME: redirect to Idp again
+		return nil, errors.New("session not found in store")
+	}
 
-	if requestedURL == provider.CallbackURI {
-		code, err := s.getCodeQueryParam(req.GetQuery())
+	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") {
+		code, err := s.getCodeQueryParam(requestedURL)
 		if err != nil {
 			return nil, err
 		}
@@ -155,6 +151,7 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	}
 
 	tokens := sessionData.GetTokens()
+	// slog.Debug("tokens", slog.String("id_token", tokens.IDToken), slog.String("access_token", tokens.AccessToken), slog.String("refresh_token", tokens.RefreshToken), slog.String("expire", tokens.Expiry.String()))
 	newTokens, updated, err := s.validateToken(ctx, provider, tokens)
 	if err != nil {
 		return nil, err
@@ -203,9 +200,22 @@ func expired(expiry time.Time) bool {
 	return expiry.Round(0).Add(-expiryDelta).Before(time.Now())
 }
 
+func (s *Service) getSessionCookie(req *auth.AttributeContext_HttpRequest, cookieName string) (*http.Cookie, bool) {
+	for _, cookie := range s.getCookies(req) {
+		if cookie.Name == cookieName {
+			if cookie.Valid() == nil {
+				slog.Debug("cookie is valid")
+				return cookie, true
+			}
+		}
+	}
+	return nil, false
+}
+
 // parse cookie header string into []*http.Cookie struct
 func (s *Service) getCookies(req *auth.AttributeContext_HttpRequest) []*http.Cookie {
-	cookieRaw := req.GetHeaders()["Cookie"]
+	cookieRaw := req.GetHeaders()["cookie"]
+	slog.Debug("cookieRaw", slog.String("cookieRaw", cookieRaw))
 	header := http.Header{}
 	header.Add("Cookie", cookieRaw)
 	r := http.Request{Header: header}
@@ -217,7 +227,19 @@ func (s *Service) setCookie(cookie *http.Cookie) []*core.HeaderValueOption {
 		{
 			Header: &core.HeaderValue{
 				Key:   "Cache-Control",
-				Value: `no-cache="Set-Cookie"`,
+				Value: "no-cache",
+			},
+		},
+		{
+			Header: &core.HeaderValue{
+				Key:   "Pragma",
+				Value: "no-cache",
+			},
+		},
+		{
+			Header: &core.HeaderValue{
+				Key:   "Vary",
+				Value: "Accept-Encoding",
 			},
 		},
 		{
@@ -247,13 +269,12 @@ func (s *Service) setAuthorizationHeader(token string) *core.HeaderValueOption {
 	}
 }
 
-func (s *Service) getCodeQueryParam(queryString string) (string, error) {
-	queryParams, err := url.ParseQuery(queryString)
+func (s *Service) getCodeQueryParam(fullURL string) (string, error) {
+	u, err := url.Parse(fullURL)
 	if err != nil {
 		return "", err
 	}
-	code := queryParams.Get("code")
-	return code, nil
+	return u.Query().Get("code"), nil
 }
 
 func (s *Service) response(success bool, httpStatusCode envoy_type.StatusCode, headers []*core.HeaderValueOption, body string) *auth.CheckResponse {

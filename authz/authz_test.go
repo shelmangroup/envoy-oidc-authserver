@@ -45,7 +45,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 				Scopes:           []string{"openid", "profile", "email"},
 				CookieNamePrefix: "foo",
 				HeaderMatch: HeaderMatch{
-					Name:  "authority",
+					Name:  ":authority",
 					Exact: "foo.bar",
 				},
 			},
@@ -67,7 +67,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 						Host:   "foo.bar",
 						Path:   "/",
 						Headers: map[string]string{
-							"authority": "foo.bar",
+							":authority": "foo.bar",
 						},
 					},
 				},
@@ -82,7 +82,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	assert.Equal(t, testCfg.Providers[0].p.IdpAuthURL(), resp.Msg.GetDeniedResponse().GetHeaders()[0].GetHeader().GetValue())
 
 	//2. Check Authorization response with callback and cookie req.
-	cookie := resp.Msg.GetDeniedResponse().GetHeaders()[2].GetHeader().GetValue()
+	cookie := resp.Msg.GetDeniedResponse().GetHeaders()[4].GetHeader().GetValue()
 	cookieReq := connect.NewRequest(
 		&auth.CheckRequest{
 			Attributes: &auth.AttributeContext{
@@ -90,11 +90,10 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 					Http: &auth.AttributeContext_HttpRequest{
 						Scheme: "http",
 						Host:   "foo.bar",
-						Path:   "/callback",
-						Query:  "code=1234",
+						Path:   "/callback?code=1234567890&state=1234567890",
 						Headers: map[string]string{
-							"authority": "foo.bar",
-							"Cookie":    cookie,
+							":authority": "foo.bar",
+							"cookie":     cookie,
 						},
 					},
 				},
@@ -116,8 +115,8 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 						Host:   "foo.bar",
 						Path:   "/",
 						Headers: map[string]string{
-							"authority": "foo.bar",
-							"Cookie":    cookie,
+							":authority": "foo.bar",
+							"cookie":     cookie,
 						},
 					},
 				},

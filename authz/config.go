@@ -74,7 +74,7 @@ func ConfigFromXmlFile(filename string) (*Config, error) {
 
 func (c *Config) Match(headerName, headerValue string) *OIDCProvider {
 	for _, p := range c.Providers {
-		if strings.ToLower(p.HeaderMatch.Name) == strings.ToLower(headerName) {
+		if strings.EqualFold(p.HeaderMatch.Name, headerName) {
 			switch {
 			case p.HeaderMatch.Exact == headerValue:
 				return &p
