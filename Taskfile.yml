@@ -35,7 +35,7 @@ tasks:
       - go run . --log-level=debug --providers-config=run/config/providers.yaml
 
   dev:deps:
-    desc: run envoy, dex and podinfo container for local development and testing
+    desc: run envoy, dex, otel and podinfo container for local development and testing
     cmds:
       - podman compose up --detach
 

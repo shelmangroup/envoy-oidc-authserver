@@ -52,7 +52,6 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 
 	slog.Debug("client headers", slog.Any("headers", httpReq.GetHeaders()))
 	for k, v := range httpReq.GetHeaders() {
-		slog.Debug("matching headers", slog.String("key", k), slog.String("value", v))
 		provider = s.cfg.Match(k, v)
 		if provider != nil {
 			break
@@ -139,7 +138,7 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 		}
 		return s.response(false, envoy_type.StatusCode_Found, headers, "redirect to Idp"), nil
 	}
-	// slog.Debug("tokens", slog.String("id_token", tokens.IDToken), slog.String("access_token", tokens.AccessToken), slog.String("refresh_token", tokens.RefreshToken), slog.String("expire", tokens.Expiry.String()))
+
 	newTokens, updated, err := s.validateToken(ctx, provider, tokens)
 	if err != nil {
 		return nil, err
@@ -162,7 +161,6 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 
 // Validates and poteintially refreshes the token
 func (s *Service) validateToken(ctx context.Context, provider *OIDCProvider, tokens *store.Tokens) (*store.Tokens, bool, error) {
-	//Validate token
 	if tokens.AccessToken != "" && !expired(tokens.Expiry) {
 		return tokens, false, nil
 	}
@@ -171,6 +169,7 @@ func (s *Service) validateToken(ctx context.Context, provider *OIDCProvider, tok
 	if err != nil {
 		return nil, false, err
 	}
+
 	return &store.Tokens{
 		RefreshToken: t.RefreshToken,
 		AccessToken:  t.AccessToken,
@@ -222,7 +221,7 @@ func (s *Service) getSessionCookie(req *auth.AttributeContext_HttpRequest, cooki
 	for _, cookie := range s.getCookies(req) {
 		if cookie.Name == cookieName {
 			if cookie.Valid() == nil {
-				slog.Debug("cookie is valid")
+				slog.Debug("cookie 👌")
 				return cookie, true
 			}
 		}
@@ -233,7 +232,6 @@ func (s *Service) getSessionCookie(req *auth.AttributeContext_HttpRequest, cooki
 // parse cookie header string into []*http.Cookie struct
 func (s *Service) getCookies(req *auth.AttributeContext_HttpRequest) []*http.Cookie {
 	cookieRaw := req.GetHeaders()["cookie"]
-	slog.Debug("cookieRaw", slog.String("cookieRaw", cookieRaw))
 	header := http.Header{}
 	header.Add("Cookie", cookieRaw)
 	r := http.Request{Header: header}
@@ -296,10 +294,8 @@ func (s *Service) getCodeQueryParam(fullURL string) (string, error) {
 }
 
 func (s *Service) response(success bool, httpStatusCode envoy_type.StatusCode, headers []*core.HeaderValueOption, body string) *auth.CheckResponse {
-	var resp *auth.CheckResponse
-
 	if success {
-		resp = &auth.CheckResponse{
+		return &auth.CheckResponse{
 			Status: &rpcstatus.Status{
 				Code: int32(rpc.OK),
 			},
@@ -309,22 +305,19 @@ func (s *Service) response(success bool, httpStatusCode envoy_type.StatusCode, h
 				},
 			},
 		}
-	} else {
-		resp = &auth.CheckResponse{
-			Status: &rpcstatus.Status{
-				Code: int32(rpc.PERMISSION_DENIED),
-			},
-			HttpResponse: &auth.CheckResponse_DeniedResponse{
-				DeniedResponse: &auth.DeniedHttpResponse{
-					Status: &envoy_type.HttpStatus{
-						Code: httpStatusCode,
-					},
-					Headers: headers,
-					Body:    body,
-				},
-			},
-		}
 	}
-
-	return resp
+	return &auth.CheckResponse{
+		Status: &rpcstatus.Status{
+			Code: int32(rpc.PERMISSION_DENIED),
+		},
+		HttpResponse: &auth.CheckResponse_DeniedResponse{
+			DeniedResponse: &auth.DeniedHttpResponse{
+				Status: &envoy_type.HttpStatus{
+					Code: httpStatusCode,
+				},
+				Headers: headers,
+				Body:    body,
+			},
+		},
+	}
 }

@@ -13,11 +13,12 @@ staticClients:
     redirectURIs:
       - "http://localhost:8000/_authz/callback"
     name: "Podinfo App"
+    public: true
     secret: test1234
 
 connectors:
   - type: mockCallback
     id: mock
-    name: Example
+    name: Mock Provider
 
 enablePasswordDB: true

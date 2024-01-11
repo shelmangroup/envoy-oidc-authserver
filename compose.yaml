@@ -1,3 +1,5 @@
+version: "3"
+
 services:
   front-envoy:
     image: docker.io/envoyproxy/envoy:v1.28-latest
@@ -24,6 +26,14 @@ services:
       - dex
       - serve
       - /dex.yaml
+
+  otel:
+    image: docker.io/otel/opentelemetry-collector-contrib
+    volumes:
+      - ./run/config/otel.yaml:/etc/otel/config.yaml
+    ports:
+      - "${PORT_OTEL:-4317}:4317"
+    network_mode: host
 
   podinfo:
     image: ghcr.io/stefanprodan/podinfo
