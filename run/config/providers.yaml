@@ -1,0 +1,13 @@
+providers:
+  - issuerURL: http://localhost:5556/dex
+    callbackURI: http://localhost:8000/_authz/callback
+    clientID: podinfo
+    clientSecret: test1234 # omit for PKCE auth
+    cookieNamePrefix: podinfo
+    scopes:
+      - openid
+      - profile
+      - email
+    headerMatch:
+      name: :authority
+      exact: localhost:8000

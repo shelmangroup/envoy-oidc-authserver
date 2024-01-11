@@ -1,0 +1,46 @@
+services:
+  front-envoy:
+    image: docker.io/envoyproxy/envoy:v1.28-latest
+    volumes:
+      - ./run/config/envoy.yaml:/envoy.yaml
+    depends_on:
+      podinfo:
+        condition: service_healthy
+    command:
+      - -c
+      - /envoy.yaml
+    network_mode: host
+    ports:
+      - "${PORT_PROXY:-8000}:8000"
+
+  dex:
+    image: ghcr.io/dexidp/dex:latest
+    volumes:
+      - ./run/config/dex.yaml:/dex.yaml
+    ports:
+      - "${PORT_DEX:-5556}:5556"
+    network_mode: host
+    command:
+      - dex
+      - serve
+      - /dex.yaml
+
+  podinfo:
+    image: ghcr.io/stefanprodan/podinfo
+    network_mode: host
+
+  shelman-authz:
+    image: ko.local/shelman-authz:latest
+    depends_on:
+      dex:
+        condition: service_healthy
+    network_mode: host
+    ports:
+      - "${PORT_AUTHZ:-8080}:8080"
+    volumes:
+      - ./run/config/providers.yaml:/providers.yaml
+    command:
+      - -providers-config
+      - /providers.yaml
+      - -log-level
+      - debug
