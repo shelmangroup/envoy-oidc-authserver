@@ -1,0 +1,61 @@
+version: "3"
+
+tasks:
+  default:
+    deps: [test]
+
+  test:
+    cmds:
+      - gotestsum -- -short -coverprofile=coverage.out {{or .CLI_ARGS "./..."}}
+
+  test:watch:
+    desc: (Re)run (Go) tests automatically when files change
+    cmds:
+      - gotestsum --watch --format=short --format-hide-empty-pkg --format-hivis --post-run-command 'echo -e "\\n  🔹🔹🔹"'
+
+  lint:
+    desc: Lint all source code
+    cmds:
+      - golangci-lint run --fix --timeout 10m
+
+  fmt:
+    desc: Format all source code
+    cmds:
+      - prettier --write '**/**.{ts,js,md,yaml,yml,sass,css,scss,html}'
+      - golines --max-len=88 --base-formatter=gofumpt -w --ignored-dirs="vendor" .
+
+  dev:
+    desc: Run shelman-authz and restart on source changes
+    cmds:
+      - watchexec --clear --restart --stop-signal INT --debounce 300ms -- task dev:server
+
+  dev:server:
+    desc: Run shelman-authz for local development
+    cmds:
+      - go run . --log-level=debug --providers-config=run/config/providers.yaml
+
+  dev:deps:
+    desc: run envoy, dex and podinfo container for local development and testing
+    cmds:
+      - podman compose up --detach
+
+  tidy:
+    cmds:
+      - go mod tidy
+
+  update:
+    desc: Update all dependencies
+    cmds:
+      - task: update:nix-pkgs
+      - task: update:go-deps
+
+  update:go-deps:
+    desc: Update go dependencies
+    cmds:
+      - go get -u ./...
+      - task: tidy
+
+  update:nix-pkgs:
+    desc: Update nix flake packages
+    cmds:
+      - nix flake update
