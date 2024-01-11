@@ -50,6 +50,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	var resp *auth.CheckResponse
 	var provider *OIDCProvider
 
+	slog.Debug("client headers", slog.Any("headers", httpReq.GetHeaders()))
 	for k, v := range httpReq.GetHeaders() {
 		slog.Debug("matching headers", slog.String("key", k), slog.String("value", v))
 		provider = s.cfg.Match(k, v)
@@ -77,34 +78,17 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	sessionData := &store.SessionData{}
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
 	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
+	idpAuthURL := provider.p.IdpAuthURL()
+
 	slog.Debug("requestedURL", slog.String("requestedURL", requestedURL))
 
 	// check if cookie exists
 	sessionCookie, found := s.getSessionCookie(req, sessionCookieName)
 	if !found {
-		slog.Debug("cookie not found, redirecting to Idp")
-		sessionCookieToken, err := store.GenerateSessionToken()
+		headers, err := s.newSession(ctx, requestedURL, idpAuthURL, sessionCookieName, sessionData)
 		if err != nil {
 			return nil, err
 		}
-		sessionData.SetRequestedURL(requestedURL)
-
-		err = s.store.Set(ctx, sessionCookieToken, sessionData)
-		if err != nil {
-			return nil, err
-		}
-
-		headers = append(headers, s.setRedirectHeader(provider.p.IdpAuthURL()))
-		// set cookie with session id and redirect to Idp
-		cookie := &http.Cookie{
-			Name:     sessionCookieName,
-			Value:    sessionCookieToken,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		}
-		headers = append(headers, s.setCookie(cookie)...)
 		// set downstream headers and redirect to Idp
 		return s.response(false, envoy_type.StatusCode_Found, headers, "redirect to Idp"), nil
 	}
@@ -116,8 +100,14 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 		return nil, err
 	}
 	if !found {
-		// FIXME: redirect to Idp again
-		return nil, errors.New("session not found in store")
+		sessionData = &store.SessionData{}
+		headers, err := s.newSession(ctx, requestedURL, idpAuthURL, sessionCookieName, sessionData)
+		if err != nil {
+			return nil, err
+		}
+		// set downstream headers and redirect to Idp
+		slog.Debug("redirect headers", slog.Any("headers", headers))
+		return s.response(false, envoy_type.StatusCode_Found, headers, "stale session redirect to Idp"), nil
 	}
 
 	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") {
@@ -151,6 +141,14 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	}
 
 	tokens := sessionData.GetTokens()
+	if tokens == nil {
+		slog.Debug("no tokens found in session data, redirecting to Idp")
+		headers, err := s.newSession(ctx, requestedURL, idpAuthURL, sessionCookieName, sessionData)
+		if err != nil {
+			return nil, err
+		}
+		return s.response(false, envoy_type.StatusCode_Found, headers, "redirect to Idp"), nil
+	}
 	// slog.Debug("tokens", slog.String("id_token", tokens.IDToken), slog.String("access_token", tokens.AccessToken), slog.String("refresh_token", tokens.RefreshToken), slog.String("expire", tokens.Expiry.String()))
 	newTokens, updated, err := s.validateToken(ctx, provider, tokens)
 	if err != nil {
@@ -198,6 +196,36 @@ func expired(expiry time.Time) bool {
 	}
 	expiryDelta := 10 * time.Second
 	return expiry.Round(0).Add(-expiryDelta).Before(time.Now())
+}
+
+func (s *Service) newSession(ctx context.Context, requestedURL, idpAuthURL, sessionCookieName string, sessionData *store.SessionData) ([]*core.HeaderValueOption, error) {
+	slog.Debug("cookie not found, redirecting to Idp")
+	var headers []*core.HeaderValueOption
+
+	sessionCookieToken, err := store.GenerateSessionToken()
+	if err != nil {
+		return nil, err
+	}
+	slog.Debug("setting requested url", slog.String("requested_url", requestedURL))
+	sessionData.SetRequestedURL(requestedURL)
+
+	slog.Debug("saving to store")
+	err = s.store.Set(ctx, sessionCookieToken, sessionData)
+	if err != nil {
+		return nil, err
+	}
+
+	headers = append(headers, s.setRedirectHeader(idpAuthURL))
+	// set cookie with session id and redirect to Idp
+	cookie := &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    sessionCookieToken,
+		Path:     "/",
+		HttpOnly: true,
+		// Secure:   true,
+		// SameSite: http.SameSiteLaxMode,
+	}
+	return append(headers, s.setCookie(cookie)...), nil
 }
 
 func (s *Service) getSessionCookie(req *auth.AttributeContext_HttpRequest, cookieName string) (*http.Cookie, bool) {

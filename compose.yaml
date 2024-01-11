@@ -30,7 +30,7 @@ services:
     network_mode: host
 
   shelman-authz:
-    image: ko.local/shelman-authz:latest
+    image: "${KO_IMAGE:-ko.local/shelman-authz:latest}"
     depends_on:
       dex:
         condition: service_healthy
