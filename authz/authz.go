@@ -95,19 +95,9 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 
 	// get session data from store
 	slog.Debug("getting session data from store", slog.String("session_id", sessionCookie.Value))
-	sessionData, found, err := s.store.Get(ctx, sessionCookie.Value)
+	sessionData, _, err := s.store.Get(ctx, sessionCookie.Value)
 	if err != nil {
 		return nil, err
-	}
-	if !found {
-		sessionData = &store.SessionData{}
-		headers, err := s.newSession(ctx, requestedURL, idpAuthURL, sessionCookieName, sessionData)
-		if err != nil {
-			return nil, err
-		}
-		// set downstream headers and redirect to Idp
-		slog.Debug("redirect headers", slog.Any("headers", headers))
-		return s.response(false, envoy_type.StatusCode_Found, headers, "stale session redirect to Idp"), nil
 	}
 
 	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") {

@@ -29,18 +29,18 @@ services:
     image: ghcr.io/stefanprodan/podinfo
     network_mode: host
 
-  shelman-authz:
-    image: "${KO_IMAGE:-ko.local/shelman-authz:latest}"
-    depends_on:
-      dex:
-        condition: service_healthy
-    network_mode: host
-    ports:
-      - "${PORT_AUTHZ:-8080}:8080"
-    volumes:
-      - ./run/config/providers.yaml:/providers.yaml
-    command:
-      - -providers-config
-      - /providers.yaml
-      - -log-level
-      - debug
+  # shelman-authz:
+  #   image: "${KO_IMAGE:-ko.local/shelman-authz:latest}"
+  #   depends_on:
+  #     dex:
+  #       condition: service_healthy
+  #   network_mode: host
+  #   ports:
+  #     - "${PORT_AUTHZ:-8080}:8080"
+  #   volumes:
+  #     - ./run/config/providers.yaml:/providers.yaml
+  #   command:
+  #     - -providers-config
+  #     - /providers.yaml
+  #     - -log-level
+  #     - debug

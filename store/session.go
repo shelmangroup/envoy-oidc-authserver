@@ -37,7 +37,7 @@ func (s *SessionStore) Get(ctx context.Context, token string) (*SessionData, boo
 		return nil, false, err
 	}
 	if !found {
-		return nil, false, nil
+		return &SessionData{}, false, nil
 	}
 	d := &SessionData{}
 	r := bytes.NewReader(b)

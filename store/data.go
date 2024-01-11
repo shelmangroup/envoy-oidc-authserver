@@ -18,10 +18,16 @@ type Tokens struct {
 }
 
 func (s *SessionData) GetRequestedURL() string {
+	if s == nil {
+		s = &SessionData{}
+	}
 	return s.RequestedURL
 }
 
 func (s *SessionData) GetTokens() *Tokens {
+	if s == nil {
+		s = &SessionData{}
+	}
 	return s.Tokens
 }
 
