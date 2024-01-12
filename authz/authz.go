@@ -50,7 +50,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	var resp *auth.CheckResponse
 	var provider *OIDCProvider
 
-	slog.Debug("client headers", slog.Any("headers", httpReq.GetHeaders()))
+	slog.Debug("client request headers", slog.Any("headers", httpReq.GetHeaders()))
 	for k, v := range httpReq.GetHeaders() {
 		provider = s.cfg.Match(k, v)
 		if provider != nil {

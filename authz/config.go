@@ -77,10 +77,13 @@ func (c *Config) Match(headerName, headerValue string) *OIDCProvider {
 		if strings.EqualFold(p.HeaderMatch.Name, headerName) {
 			switch {
 			case p.HeaderMatch.Exact == headerValue:
+				slog.Debug("header match exact", slog.String("name", headerName), slog.String("value", headerValue))
 				return &p
 			case p.HeaderMatch.Regex != "" && regexp.MustCompile(p.HeaderMatch.Regex).MatchString(headerValue):
+				slog.Debug("header match regex", slog.String("name", headerName), slog.String("value", headerValue))
 				return &p
 			case p.HeaderMatch.Prefix != "" && strings.HasPrefix(headerValue, p.HeaderMatch.Prefix):
+				slog.Debug("header match prefix", slog.String("name", headerName), slog.String("value", headerValue))
 				return &p
 			}
 		}
