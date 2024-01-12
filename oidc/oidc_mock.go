@@ -18,13 +18,13 @@ func NewOIDCMockProvider(clientID, clientSecret, redirectURI, issuer string, sco
 }
 
 // IdpAuthURL returns the url to redirect the user for authentication
-func (o *OIDCMockProvider) IdpAuthURL() string {
+func (o *OIDCMockProvider) IdpAuthURL(codeChallenge string) string {
 	return "http://mock.idp/auth"
 }
 
 // RetriveTokens retrieves the tokens from the idp callback redirect and returns them
 // `code` is the `code` query parameter from the idp callback redirect
-func (o *OIDCMockProvider) RetriveTokens(ctx context.Context, code string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
+func (o *OIDCMockProvider) RetriveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
 	return &oidc.Tokens[*oidc.IDTokenClaims]{
 		Token: &oauth2.Token{
 			AccessToken:  "foo",

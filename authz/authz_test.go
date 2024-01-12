@@ -79,7 +79,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.Status.Code)
 	// redirect to Idp should happen
 	assert.Equal(t, envoy_type.StatusCode_Found, resp.Msg.GetDeniedResponse().GetStatus().GetCode())
-	assert.Equal(t, testCfg.Providers[0].p.IdpAuthURL(), resp.Msg.GetDeniedResponse().GetHeaders()[0].GetHeader().GetValue())
+	assert.Equal(t, testCfg.Providers[0].p.IdpAuthURL(""), resp.Msg.GetDeniedResponse().GetHeaders()[0].GetHeader().GetValue())
 
 	//2. Check Authorization response with callback and cookie req.
 	cookie := resp.Msg.GetDeniedResponse().GetHeaders()[4].GetHeader().GetValue()

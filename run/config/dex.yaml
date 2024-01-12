@@ -7,6 +7,11 @@ storage:
 
 web:
   http: 0.0.0.0:5556
+  allowedOrigins: ["*"]
+
+oauth2:
+  responseTypes: ["code"]
+  skipApprovalScreen: true
 
 staticClients:
   - id: podinfo
@@ -14,7 +19,7 @@ staticClients:
       - "http://localhost:8000/_authz/callback"
     name: "Podinfo App"
     public: true
-    secret: test1234
+    # secret: test1234
 
 connectors:
   - type: mockCallback

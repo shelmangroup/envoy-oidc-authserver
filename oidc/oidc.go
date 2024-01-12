@@ -3,13 +3,13 @@ package oidc
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptrace"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
-	httphelper "github.com/zitadel/oidc/v3/pkg/http"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -17,8 +17,8 @@ import (
 
 // Create auth provicer interface
 type UnimplementedAuthProvider interface {
-	IdpAuthURL() string
-	RetriveTokens(ctx context.Context, code string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
+	IdpAuthURL(codeChallenge string) string
+	RetriveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
 	RefreshTokens(ctx context.Context, refreshToken, clientAssertion string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
 }
 
@@ -26,11 +26,13 @@ type OIDCProvider struct {
 	UnimplementedAuthProvider
 
 	provider rp.RelyingParty
+	isPKCE   bool
 }
 
 // NewOIDCProvider creates a new oidc provider
 func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes []string) (*OIDCProvider, error) {
 	ctx := context.Background()
+	var pkce bool
 
 	client := &http.Client{
 		Timeout: time.Second * 5,
@@ -42,17 +44,13 @@ func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes 
 		),
 	}
 
-	//FIXME: This is not secure, but it is a test
-	key := []byte("test1234test1234")
-	cookieHandler := httphelper.NewCookieHandler(key, key, httphelper.WithUnsecure())
-
 	options := []rp.Option{
-		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
 		rp.WithHTTPClient(client),
 	}
+
 	if clientSecret == "" {
-		options = append(options, rp.WithPKCE(cookieHandler))
+		pkce = true
 	}
 
 	provider, err := rp.NewRelyingPartyOIDC(ctx, issuer, clientID, clientSecret, redirectURI, scopes, options...)
@@ -60,20 +58,33 @@ func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes 
 		return nil, err
 	}
 
-	return &OIDCProvider{provider: provider}, nil
+	return &OIDCProvider{provider: provider, isPKCE: pkce}, nil
 }
 
 // IdpAuthURL returns the url to redirect the user for authentication
-func (o *OIDCProvider) IdpAuthURL() string {
+func (o *OIDCProvider) IdpAuthURL(codeChallenge string) string {
 	state := uuid.New().String()
-	return rp.AuthURL(state, o.provider)
+	var opts []rp.AuthURLOpt
+	if o.isPKCE {
+		opts = append(opts, rp.WithCodeChallenge(codeChallenge))
+	}
+	return rp.AuthURL(state, o.provider, opts...)
 }
 
 // RetriveTokens retrieves the tokens from the idp callback redirect and returns them
 // `code` is the `code` query parameter from the idp callback redirect
-func (o *OIDCProvider) RetriveTokens(ctx context.Context, code string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
-	tokens, err := rp.CodeExchange[*oidc.IDTokenClaims](ctx, code, o.provider)
+func (o *OIDCProvider) RetriveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
+	slog.Debug("retriving tokens", slog.String("authorization_code", code), slog.String("code_verifier", codeVerifier))
+	var opts []rp.CodeExchangeOpt
+
+	if o.isPKCE {
+		slog.Debug("provider is PKCE")
+		opts = append(opts, rp.WithCodeVerifier(codeVerifier))
+	}
+
+	tokens, err := rp.CodeExchange[*oidc.IDTokenClaims](ctx, code, o.provider, opts...)
 	if err != nil {
+		slog.Error("retriving token", slog.String("err", err.Error()))
 		return nil, err
 	}
 

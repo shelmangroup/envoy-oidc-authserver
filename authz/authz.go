@@ -74,16 +74,17 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRequest, provider *OIDCProvider) (*auth.CheckResponse, error) {
 	var headers []*core.HeaderValueOption
 	var sessionCookie *http.Cookie
-	sessionData := &store.SessionData{}
+	var sessionData *store.SessionData
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
-	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
-	idpAuthURL := provider.p.IdpAuthURL()
 
+	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
 	slog.Debug("requestedURL", slog.String("requestedURL", requestedURL))
 
 	// check if cookie exists
 	sessionCookie, found := s.getSessionCookie(req, sessionCookieName)
 	if !found {
+		sessionData = store.NewSessionData()
+		idpAuthURL := provider.p.IdpAuthURL(sessionData.CodeChallenge)
 		headers, err := s.newSession(ctx, requestedURL, idpAuthURL, sessionCookieName, sessionData)
 		if err != nil {
 			return nil, err
@@ -96,16 +97,16 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	slog.Debug("getting session data from store", slog.String("session_id", sessionCookie.Value))
 	sessionData, _, err := s.store.Get(ctx, sessionCookie.Value)
 	if err != nil {
+		slog.Error("error getting session data from store", slog.String("err", err.Error()), slog.String("session_id", sessionCookie.Value))
 		return nil, err
 	}
 
-	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") {
+	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") && sessionData != nil {
 		code, err := s.getCodeQueryParam(requestedURL)
 		if err != nil {
 			return nil, err
 		}
-		slog.Debug("retriving token", slog.String("authorization_code", code))
-		tokens, err := provider.p.RetriveTokens(ctx, code)
+		tokens, err := provider.p.RetriveTokens(ctx, code, sessionData.CodeVerifier)
 		if err != nil {
 			return nil, err
 		}
@@ -132,6 +133,9 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 	tokens := sessionData.GetTokens()
 	if tokens == nil {
 		slog.Debug("no tokens found in session data, redirecting to Idp")
+		sessionData := store.NewSessionData()
+		idpAuthURL := provider.p.IdpAuthURL(sessionData.CodeChallenge)
+
 		headers, err := s.newSession(ctx, requestedURL, idpAuthURL, sessionCookieName, sessionData)
 		if err != nil {
 			return nil, err
@@ -141,6 +145,7 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 
 	newTokens, updated, err := s.validateToken(ctx, provider, tokens)
 	if err != nil {
+		slog.Error("error validating token", slog.String("err", err.Error()))
 		return nil, err
 	}
 	if updated {
@@ -154,8 +159,8 @@ func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRe
 		tokens = newTokens
 	}
 
+	slog.Debug("setting authorization header to upstream request", slog.String("session_id", sessionCookie.Value))
 	headers = append(headers, s.setAuthorizationHeader(tokens.IDToken))
-	slog.Debug("token ok, carry on!", slog.String("session_id", sessionCookie.Value))
 	return s.response(true, envoy_type.StatusCode_OK, headers, "success"), nil
 }
 
