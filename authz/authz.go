@@ -2,7 +2,6 @@ package authz
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -51,34 +50,37 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	var provider *OIDCProvider
 
 	slog.Debug("client request headers", slog.Any("headers", httpReq.GetHeaders()))
-	for k, v := range httpReq.GetHeaders() {
-		provider = s.cfg.Match(k, v)
+	for name, value := range httpReq.GetHeaders() {
+		provider = s.cfg.Match(name, value)
 		if provider != nil {
 			break
 		}
 	}
-
 	if provider == nil {
-		slog.Debug("no header matches any provider")
-		return nil, errors.New("no header matches any provider")
+		slog.Error("no header matches any provider")
+		return connect.NewResponse(s.response(false, envoy_type.StatusCode_Unauthorized, nil, "no header matches any auth provider")), nil
 	}
 
-	resp, err := s.process(ctx, httpReq, provider)
+	// TODO: Support chaining to OPA?
+
+	resp, err := s.authProcess(ctx, httpReq, provider)
 	if err != nil {
+		slog.Error("authProccess failed", slog.String("err", err.Error()))
 		return nil, err
 	}
 
+	// Return response to envoy
 	return connect.NewResponse(resp), nil
 }
 
-func (s *Service) process(ctx context.Context, req *auth.AttributeContext_HttpRequest, provider *OIDCProvider) (*auth.CheckResponse, error) {
+func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_HttpRequest, provider *OIDCProvider) (*auth.CheckResponse, error) {
 	var headers []*core.HeaderValueOption
 	var sessionCookie *http.Cookie
 	var sessionData *store.SessionData
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
 
 	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
-	slog.Debug("requestedURL", slog.String("requestedURL", requestedURL))
+	slog.Debug("client request url", slog.String("url", requestedURL))
 
 	// check if cookie exists
 	sessionCookie, found := s.getSessionCookie(req, sessionCookieName)

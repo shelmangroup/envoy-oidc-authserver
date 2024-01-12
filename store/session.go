@@ -9,10 +9,12 @@ import (
 	"time"
 )
 
+// TODO: support encryption of session data
+
 type SessionStore struct {
 	store    Store
 	Lifetime time.Duration
-	// Implement next level of store?
+	// TODO: Implement next level of store?
 	// nextStore Store,
 }
 
@@ -41,6 +43,7 @@ func (s *SessionStore) Get(ctx context.Context, token string) (*SessionData, boo
 	}
 	d := &SessionData{}
 	r := bytes.NewReader(b)
+	// FIXME: use protobuf instead of gob
 	if err := gob.NewDecoder(r).Decode(d); err != nil {
 		return nil, false, err
 	}
