@@ -21,6 +21,7 @@ func main() {
 	fs := flag.NewFlagSet("shelman-authz", flag.ContinueOnError)
 	addr := fs.String("listen-addr", ":8080", "address to listen on")
 	otlpAddr := fs.String("otlp-addr", ":4317", "address to send OTLP traces to")
+	opaURL := fs.String("opa-url", "", "base url to send OPA requests to")
 	providersConfig := fs.String("providers-config", "", "oidc config file")
 	logJson := fs.Bool("log-json", false, "log in JSON format")
 	logLevel := fs.String("log-level", "info", "log level (debug, info, warn, error)")
@@ -59,7 +60,7 @@ func main() {
 	sessionStore := store.NewSessionStore(nil, 0)
 
 	// Create new server
-	s := server.NewServer(*addr, authz.NewService(c, sessionStore))
+	s := server.NewServer(*addr, authz.NewService(c, sessionStore, *opaURL))
 	defer s.Shutdown()
 
 	// Start the server

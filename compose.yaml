@@ -27,6 +27,24 @@ services:
       - serve
       - /dex.yaml
 
+  opa:
+    image: docker.io/openpolicyagent/opa:latest-envoy-static
+    volumes:
+      - ./run/config/policy.rego:/policies/policy.rego
+    ports:
+      - "${PORT_OPA:-9191}:9191"
+    command:
+      - run
+      - --server
+      - --log-level=debug
+      - --set=plugins.envoy_ext_authz_grpc.addr=:9191
+      - --set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow
+      - --set=decision_logs.console=true
+      - --set=status.console=true
+      - --ignore=.*
+      - /policies/policy.rego
+    network_mode: host
+
   otel:
     image: docker.io/otel/opentelemetry-collector-contrib
     volumes:

@@ -4,6 +4,8 @@ providers:
     clientID: podinfo
     # clientSecret: test1234 # omit for PKCE auth
     cookieNamePrefix: podinfo
+    opaEnabled: true
+    # allowAuthHeaderPassThrough: true
     scopes:
       - openid
       - profile

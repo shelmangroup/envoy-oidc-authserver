@@ -76,7 +76,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	)
 	resp, err := authz.Check(context.TODO(), noCookieReq)
 	require.NoError(t, err, "check should not have failed")
-	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.Status.Code)
+	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.GetStatus().GetCode())
 	// redirect to Idp should happen
 	assert.Equal(t, envoy_type.StatusCode_Found, resp.Msg.GetDeniedResponse().GetStatus().GetCode())
 	assert.Equal(t, testCfg.Providers[0].p.IdpAuthURL(""), resp.Msg.GetDeniedResponse().GetHeaders()[0].GetHeader().GetValue())
