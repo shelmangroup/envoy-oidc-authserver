@@ -10,6 +10,7 @@ providers:
       - openid
       - profile
       - email
+      - offline_access
     headerMatch:
       name: :authority
       exact: localhost:8000

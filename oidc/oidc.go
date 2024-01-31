@@ -20,6 +20,7 @@ type UnimplementedAuthProvider interface {
 	IdpAuthURL(codeChallenge string) string
 	RetriveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
 	RefreshTokens(ctx context.Context, refreshToken, clientAssertion string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
+	VerifyTokens(ctx context.Context, accessToken, idToken string) (bool, error)
 }
 
 type OIDCProvider struct {
@@ -69,6 +70,19 @@ func (o *OIDCProvider) IdpAuthURL(codeChallenge string) string {
 		opts = append(opts, rp.WithCodeChallenge(codeChallenge))
 	}
 	return rp.AuthURL(state, o.provider, opts...)
+}
+
+func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken string) (bool, error) {
+	var expired bool
+	_, err := rp.VerifyTokens[*oidc.IDTokenClaims](ctx, accessToken, idToken, o.provider.IDTokenVerifier())
+	if err != nil {
+		if err == oidc.ErrExpired {
+			expired = true
+		} else {
+			return false, err
+		}
+	}
+	return expired, nil
 }
 
 // RetriveTokens retrieves the tokens from the idp callback redirect and returns them

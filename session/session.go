@@ -1,21 +1,19 @@
-package store
+package session
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"time"
 
 	"github.com/grokify/go-pkce"
 )
 
-// TODO: replace with ProtoBuf
 type SessionData struct {
 	RequestedURL string
-	Tokens       *Tokens
 
 	CodeVerifier  string
 	CodeChallenge string
-}
 
-type Tokens struct {
 	AccessToken  string
 	RefreshToken string
 	IDToken      string
@@ -42,17 +40,15 @@ func (s *SessionData) GetRequestedURL() string {
 	return s.RequestedURL
 }
 
-func (s *SessionData) GetTokens() *Tokens {
-	if s == nil {
-		s = &SessionData{}
-	}
-	return s.Tokens
-}
-
 func (s *SessionData) SetRequestedURL(requestedURL string) {
 	s.RequestedURL = requestedURL
 }
 
-func (s *SessionData) SetTokens(t *Tokens) {
-	s.Tokens = t
+func GenerateSessionToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }

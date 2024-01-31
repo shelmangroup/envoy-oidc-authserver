@@ -1,4 +1,5 @@
 .direnv
 .env
 .task
+coverage.out
 shelman-authz

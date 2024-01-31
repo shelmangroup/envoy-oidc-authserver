@@ -35,6 +35,10 @@ func (o *OIDCMockProvider) RetriveTokens(ctx context.Context, code, codeVerifier
 	}, nil
 }
 
+func (o *OIDCMockProvider) VerifyTokens(ctx context.Context, accessToken, idTokeb string) (bool, error) {
+	return false, nil
+}
+
 // RefreshTokens refreshes the tokens and returns them
 // clientAssertion is the client assertion jwt (tokens.AccessToken)
 func (o *OIDCMockProvider) RefreshTokens(ctx context.Context, refreshToken, clientAssertion string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {

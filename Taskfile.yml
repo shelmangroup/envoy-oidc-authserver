@@ -32,7 +32,7 @@ tasks:
   dev:server:
     desc: Run shelman-authz for local development
     cmds:
-      - go run . --log-level=debug --providers-config=run/config/providers.yaml --opa-url=http://localhost:9191
+      - go run . --log-level=debug --providers-config=run/config/providers.yaml --opa-url=http://localhost:9191 --secret-key='G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t'
 
   dev:deps:
     desc: run envoy, dex, otel and podinfo container for local development and testing

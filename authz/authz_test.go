@@ -13,7 +13,6 @@ import (
 	envoy_type "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/type/v3"
 
 	"github.com/shelmangroup/shelman-authz/oidc"
-	"github.com/shelmangroup/shelman-authz/store"
 )
 
 func initializeMock(cfg *Config) (*Config, error) {
@@ -53,8 +52,8 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	})
 	require.NoError(t, err, "init cfg should not have failed")
 
-	store := store.NewSessionStore(nil, 0)
-	authz := Service{cfg: testCfg, store: store}
+	secretKey := []byte("G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t")
+	authz := Service{cfg: testCfg, secretKey: secretKey}
 
 	//1. Check Authorization response without callback and no cookie req.
 	initialRequestedURL := "http://foo.bar/"
@@ -103,9 +102,10 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	resp, err = authz.Check(context.TODO(), cookieReq)
 	require.NoError(t, err, "check with callback should not have failed")
 	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.Status.Code)
-	assert.Equal(t, initialRequestedURL, resp.Msg.GetDeniedResponse().GetHeaders()[0].GetHeader().GetValue())
+	assert.Equal(t, initialRequestedURL, resp.Msg.GetDeniedResponse().GetHeaders()[4].GetHeader().GetValue())
 
 	//3. Success with Auth header set
+	authCookie := resp.Msg.GetDeniedResponse().GetHeaders()[3].GetHeader().GetValue()
 	successReq := connect.NewRequest(
 		&auth.CheckRequest{
 			Attributes: &auth.AttributeContext{
@@ -116,7 +116,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 						Path:   "/",
 						Headers: map[string]string{
 							":authority": "foo.bar",
-							"cookie":     cookie,
+							"cookie":     authCookie,
 						},
 					},
 				},

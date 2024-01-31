@@ -13,7 +13,6 @@ import (
 	"github.com/shelmangroup/shelman-authz/authz"
 	"github.com/shelmangroup/shelman-authz/logging"
 	"github.com/shelmangroup/shelman-authz/server"
-	"github.com/shelmangroup/shelman-authz/store"
 	"github.com/shelmangroup/shelman-authz/telemetry"
 )
 
@@ -22,6 +21,7 @@ func main() {
 	addr := fs.String("listen-addr", ":8080", "address to listen on")
 	otlpAddr := fs.String("otlp-addr", ":4317", "address to send OTLP traces to")
 	opaURL := fs.String("opa-url", "", "base url to send OPA requests to")
+	secretKey := fs.String("secret-key", "", "secret key used to encrypt JWT tokens")
 	providersConfig := fs.String("providers-config", "", "oidc config file")
 	logJson := fs.Bool("log-json", false, "log in JSON format")
 	logLevel := fs.String("log-level", "info", "log level (debug, info, warn, error)")
@@ -56,11 +56,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	//init session store
-	sessionStore := store.NewSessionStore(nil, 0)
-
 	// Create new server
-	s := server.NewServer(*addr, authz.NewService(c, sessionStore, *opaURL))
+	s := server.NewServer(*addr, authz.NewService(c, *opaURL, *secretKey))
 	defer s.Shutdown()
 
 	// Start the server
