@@ -26,4 +26,15 @@ connectors:
     id: mock
     name: Mock Provider
 
+# Uncomment this block to enable configuration for the expiration time durations.
+# Is possible to specify units using only s, m and h suffixes.
+expiry:
+  deviceRequests: "5m"
+  signingKeys: "6h"
+  idTokens: "5m"
+  refreshTokens:
+    reuseInterval: "3s"
+    validIfNotUsedFor: "2160h" # 90 days
+    absoluteLifetime: "3960h" # 165 days
+
 enablePasswordDB: true
