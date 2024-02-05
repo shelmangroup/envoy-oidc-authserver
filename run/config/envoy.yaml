@@ -11,6 +11,7 @@ static_resources:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 codec_type: AUTO
                 use_remote_address: true
+                xff_num_trusted_hops: 1
                 access_log:
                   - name: envoy.access_loggers.file
                     typed_config:

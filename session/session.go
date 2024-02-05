@@ -14,6 +14,7 @@ type SessionData struct {
 	CodeVerifier  string
 	CodeChallenge string
 
+	SourceIP     string
 	AccessToken  string
 	RefreshToken string
 	IDToken      string

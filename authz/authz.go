@@ -136,15 +136,16 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	var headers []*core.HeaderValueOption
 	var sessionData *session.SessionData
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
+	sourceIP := realIP(req.GetHeaders())
 
 	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
 	slog.Debug("client request url", slog.String("url", requestedURL))
 
 	// check if cookie exists and fetch session data from cookie
-	sessionData, sessionId := s.getSessionCookieData(ctx, req, sessionCookieName)
+	sessionData, sessionId := s.getSessionCookieData(ctx, req, sourceIP, sessionCookieName)
 	if sessionData == nil || sessionId == "" {
 		slog.Debug("session data not found in cookie, creating new")
-		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
+		headers, err := s.newSession(ctx, sourceIP, requestedURL, sessionCookieName, provider)
 		if err != nil {
 			return nil, err
 		}
@@ -169,7 +170,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	respHeaders, err := s.validateTokens(ctx, provider, sessionData, sessionCookieName, sessionId)
 	if err != nil {
 		slog.Warn("couldn't validating tokens", slog.String("err", err.Error()))
-		headers, err = s.newSession(ctx, requestedURL, sessionCookieName, provider)
+		headers, err := s.newSession(ctx, sourceIP, requestedURL, sessionCookieName, provider)
 		if err != nil {
 			return nil, err
 		}
@@ -265,7 +266,7 @@ func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, d 
 	return headers, nil
 }
 
-func (s *Service) newSession(ctx context.Context, requestedURL, sessionCookieName string, provider *OIDCProvider) ([]*core.HeaderValueOption, error) {
+func (s *Service) newSession(ctx context.Context, sourceIP, requestedURL, sessionCookieName string, provider *OIDCProvider) ([]*core.HeaderValueOption, error) {
 	slog.Debug("Creating new session")
 	var headers []*core.HeaderValueOption
 
@@ -276,6 +277,7 @@ func (s *Service) newSession(ctx context.Context, requestedURL, sessionCookieNam
 	}
 	slog.Debug("setting requested url", slog.String("requested_url", requestedURL))
 	sessionData.SetRequestedURL(requestedURL)
+	sessionData.SourceIP = sourceIP
 
 	enc, err := session.EncodeToken(ctx, [32]byte(s.secretKey), sessionData)
 	if err != nil {
@@ -297,7 +299,7 @@ func (s *Service) newSession(ctx context.Context, requestedURL, sessionCookieNam
 	return append(headers, s.setCookie(cookie)...), nil
 }
 
-func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeContext_HttpRequest, cookieName string) (*session.SessionData, string) {
+func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeContext_HttpRequest, sourceIP, cookieName string) (*session.SessionData, string) {
 	var sessionData *session.SessionData
 	var cookie *http.Cookie
 
@@ -323,12 +325,19 @@ func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeC
 		return nil, ""
 	}
 
+	slog.Debug("client source ip", slog.String("session_id", cookieValues[0]), slog.String("ip", sourceIP))
+
 	sessionData, err := session.DecodeToken(ctx, [32]byte(s.secretKey), cookieValues[1])
 	if err != nil {
 		slog.Error("error decrypt session data", slog.String("err", err.Error()))
 		return nil, ""
 	}
 	slog.Debug("getting session data from session cookie", slog.String("session_id", cookieValues[0]), slog.String("session_data_expiry", sessionData.Expiry.String()))
+
+	if sessionData.SourceIP != sourceIP {
+		slog.Warn("source ip missmatch, re-auth needed!", slog.String("session_id", cookieValues[0]), slog.String("session_ip", sessionData.SourceIP), slog.String("req_ip", sourceIP))
+		return nil, ""
+	}
 
 	return sessionData, cookieValues[0]
 }
@@ -425,4 +434,28 @@ func (s *Service) authResponse(success bool, httpStatusCode envoy_type.StatusCod
 			},
 		},
 	}
+}
+
+func realIP(headers map[string]string) string {
+	var ip string
+
+	var trueClientIP = "true-client-ip"
+	var xForwardedFor = "x-forwarded-for"
+	var xRealIP = "x-real-ip"
+
+	if tcip, ok := headers[trueClientIP]; ok {
+		ip = tcip
+	} else if xrip, ok := headers[xRealIP]; ok {
+		ip = xrip
+	} else if xff, ok := headers[xForwardedFor]; ok {
+		i := strings.Index(xff, ",")
+		if i == -1 {
+			i = len(xff)
+		}
+		ip = xff[:i]
+	}
+	if ip == "" || net.ParseIP(ip) == nil {
+		return ""
+	}
+	return ip
 }
