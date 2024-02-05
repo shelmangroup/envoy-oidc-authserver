@@ -63,12 +63,12 @@ func (s *Server) Serve() error {
 	return s.httpServer.ListenAndServe()
 }
 
-func (s *Server) Shutdown() {
+func (s *Server) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer func() {
 		cancel()
 	}()
 
 	slog.Info("Gracefully shutting down HTTP server")
-	s.httpServer.Shutdown(ctx)
+	return s.httpServer.Shutdown(ctx)
 }

@@ -64,7 +64,12 @@ func main() {
 
 	// Create new server
 	s := server.NewServer(*addr, authz.NewService(c, *opaURL, *secretKey))
-	defer s.Shutdown()
+	defer func() {
+		err := s.Shutdown()
+		if err != nil {
+			slog.Error("HTTP Server shutdown error", err)
+		}
+	}()
 
 	// Start the server
 	go func() {

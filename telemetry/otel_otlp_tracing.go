@@ -85,7 +85,12 @@ func SetupTracing(otlpAddr, environ string) func() {
 		propagation.Baggage{},
 	))
 
-	return func() { tracerProvider.Shutdown(ctx) }
+	return func() {
+		err := tracerProvider.Shutdown(ctx)
+		if err != nil {
+			slog.Error("Failed to shutdown the tracer provider", err)
+		}
+	}
 }
 
 func ZPagesHandlerFunc() func(http.ResponseWriter, *http.Request) {
