@@ -213,7 +213,7 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 		Value:    sessionId + "." + enc,
 		Path:     "/",
 		HttpOnly: true,
-		// Secure:   true,
+		Secure:   provider.SecureCookie,
 		SameSite: http.SameSiteLaxMode,
 	}
 	headers = append(headers, s.setCookie(cookie)...)
@@ -257,7 +257,7 @@ func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, d 
 		Value:    sessionId + "." + enc,
 		Path:     "/",
 		HttpOnly: true,
-		// Secure:   true,
+		Secure:   provider.SecureCookie,
 		SameSite: http.SameSiteLaxMode,
 	}
 	headers = append(headers, s.setCookie(cookie)...)
@@ -291,7 +291,7 @@ func (s *Service) newSession(ctx context.Context, requestedURL, sessionCookieNam
 		Value:    sessionCookieToken + "." + enc,
 		Path:     "/",
 		HttpOnly: true,
-		// Secure:   true,
+		Secure:   provider.SecureCookie,
 		SameSite: http.SameSiteLaxMode,
 	}
 	return append(headers, s.setCookie(cookie)...), nil
