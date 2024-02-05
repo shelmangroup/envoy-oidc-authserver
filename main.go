@@ -36,6 +36,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// check secret key to be 32 bytes
+	if len(*secretKey) != 32 {
+		slog.Error("Secret key must be 32 bytes")
+		os.Exit(1)
+	}
+
 	logger, err := logging.NewLogger(*logLevel, *logJson)
 	if err != nil {
 		slog.Error("logging error", err)

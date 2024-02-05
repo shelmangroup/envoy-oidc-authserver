@@ -30,7 +30,7 @@ func NewServer(httpAddr string, services ...Service) *Server {
 	// Register service handlers
 	svcNames := make([]string, 0, len(services))
 	for _, s := range services {
-		slog.Debug("registering services", slog.String("svc_name", s.Name()))
+		slog.Info("registering services", slog.String("name", s.Name()))
 		mux.Handle(s.NewHandler())
 		svcNames = append(svcNames, s.Name())
 	}
