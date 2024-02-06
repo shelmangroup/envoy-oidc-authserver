@@ -23,7 +23,9 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/net/http2"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	pb "github.com/shelmangroup/shelman-authz/internal/gen/session/v1"
 	"github.com/shelmangroup/shelman-authz/session"
 )
 
@@ -134,7 +136,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 
 func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_HttpRequest, provider *OIDCProvider) (*auth.CheckResponse, error) {
 	var headers []*core.HeaderValueOption
-	var sessionData *session.SessionData
+	var sessionData *pb.SessionData
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
 	sourceIP := realIP(req.GetHeaders())
 
@@ -162,8 +164,8 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 			return nil, err
 		}
 		// set downstream headers and redirect client to requested URL from session cookie
-		slog.Debug("redirecting client to first requested URL", slog.String("url", sessionData.GetRequestedURL()))
-		headers = append(headers, s.setRedirectHeader(sessionData.GetRequestedURL()))
+		slog.Debug("redirecting client to first requested URL", slog.String("url", sessionData.GetRequestedUrl()))
+		headers = append(headers, s.setRedirectHeader(sessionData.GetRequestedUrl()))
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to requested url"), nil
 	}
 
@@ -178,11 +180,11 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	}
 
 	slog.Debug("setting authorization header to upstream request", slog.String("session_id", sessionId))
-	headers = append(headers, s.setAuthorizationHeader(sessionData.IDToken))
+	headers = append(headers, s.setAuthorizationHeader(sessionData.IdToken))
 	return s.authResponse(true, envoy_type.StatusCode_OK, headers, respHeaders, "success"), nil
 }
 
-func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, sessionData *session.SessionData, requestedURL, sessionCookieName, sessionId string) ([]*core.HeaderValueOption, error) {
+func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, requestedURL, sessionCookieName, sessionId string) ([]*core.HeaderValueOption, error) {
 	headers := []*core.HeaderValueOption{}
 
 	code, err := s.getCodeQueryParam(requestedURL)
@@ -197,8 +199,8 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 	// Copy the tokens into the session data
 	sessionData.RefreshToken = tokens.RefreshToken
 	sessionData.AccessToken = tokens.AccessToken
-	sessionData.IDToken = tokens.IDToken
-	sessionData.Expiry = tokens.Expiry
+	sessionData.IdToken = tokens.IDToken
+	sessionData.Expiry = timestamppb.New(tokens.Expiry)
 
 	slog.Debug("successfully acquried tokens, now storing it to session cookie", slog.String("expire", tokens.Expiry.String()))
 
@@ -222,10 +224,10 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 }
 
 // Validates and poteintially refreshes the token
-func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, d *session.SessionData, sessionCookieName, sessionId string) ([]*core.HeaderValueOption, error) {
+func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, d *pb.SessionData, sessionCookieName, sessionId string) ([]*core.HeaderValueOption, error) {
 	headers := []*core.HeaderValueOption{}
 
-	expired, err := provider.p.VerifyTokens(ctx, d.AccessToken, d.IDToken)
+	expired, err := provider.p.VerifyTokens(ctx, d.AccessToken, d.IdToken)
 	if err != nil {
 		return nil, err
 	}
@@ -243,10 +245,10 @@ func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, d 
 
 	d.RefreshToken = t.RefreshToken
 	d.AccessToken = t.AccessToken
-	d.IDToken = t.IDToken
-	d.Expiry = t.Expiry
+	d.IdToken = t.IDToken
+	d.Expiry = timestamppb.New(t.Expiry)
 
-	slog.Debug("Token refreshed, updating session cookie", slog.String("expire", d.Expiry.String()))
+	slog.Debug("Token refreshed, updating session cookie", slog.String("expire", t.Expiry.String()))
 	enc, err := session.EncodeToken(ctx, [32]byte(s.secretKey), d)
 	if err != nil {
 		slog.Error("error encrypting session data", slog.String("err", err.Error()))
@@ -276,8 +278,8 @@ func (s *Service) newSession(ctx context.Context, sourceIP, requestedURL, sessio
 		return nil, err
 	}
 	slog.Debug("setting requested url", slog.String("requested_url", requestedURL))
-	sessionData.SetRequestedURL(requestedURL)
-	sessionData.SourceIP = sourceIP
+	sessionData.RequestedUrl = requestedURL
+	sessionData.SourceIp = sourceIP
 
 	enc, err := session.EncodeToken(ctx, [32]byte(s.secretKey), sessionData)
 	if err != nil {
@@ -299,8 +301,8 @@ func (s *Service) newSession(ctx context.Context, sourceIP, requestedURL, sessio
 	return append(headers, s.setCookie(cookie)...), nil
 }
 
-func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeContext_HttpRequest, sourceIP, cookieName string) (*session.SessionData, string) {
-	var sessionData *session.SessionData
+func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeContext_HttpRequest, sourceIP, cookieName string) (*pb.SessionData, string) {
+	var sessionData *pb.SessionData
 	var cookie *http.Cookie
 
 	for _, c := range s.getCookies(req) {
@@ -332,10 +334,10 @@ func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeC
 		slog.Error("error decrypt session data", slog.String("err", err.Error()))
 		return nil, ""
 	}
-	slog.Debug("getting session data from session cookie", slog.String("session_id", cookieValues[0]), slog.String("session_data_expiry", sessionData.Expiry.String()))
+	slog.Debug("getting session data from session cookie", slog.String("session_id", cookieValues[0]), slog.String("session_data_expiry", sessionData.Expiry.AsTime().String()))
 
-	if sessionData.SourceIP != sourceIP {
-		slog.Warn("source ip missmatch, re-auth needed!", slog.String("session_id", cookieValues[0]), slog.String("session_ip", sessionData.SourceIP), slog.String("req_ip", sourceIP))
+	if sessionData.SourceIp != sourceIP {
+		slog.Warn("source ip missmatch, re-auth needed!", slog.String("session_id", cookieValues[0]), slog.String("session_ip", sessionData.SourceIp), slog.String("req_ip", sourceIP))
 		return nil, ""
 	}
 

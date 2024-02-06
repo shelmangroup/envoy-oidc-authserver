@@ -1,0 +1,9 @@
+version: v1
+managed:
+  enabled: true
+  go_package_prefix:
+    default: github.com/shelmangroup/shelman-authz/internal/gen
+plugins:
+  - name: go
+    out: internal/gen
+    opt: paths=source_relative

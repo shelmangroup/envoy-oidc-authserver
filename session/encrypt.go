@@ -1,14 +1,15 @@
 package session
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/gob"
 	"errors"
 
 	"golang.org/x/crypto/nacl/secretbox"
+	"google.golang.org/protobuf/proto"
+
+	pb "github.com/shelmangroup/shelman-authz/internal/gen/session/v1"
 )
 
 var (
@@ -16,23 +17,20 @@ var (
 	errInvalidToken = errors.New("invalid token")
 )
 
-func EncodeToken(ctx context.Context, key [32]byte, sessionData *SessionData) (string, error) {
+func EncodeToken(ctx context.Context, key [32]byte, sessionData *pb.SessionData) (string, error) {
 
-	// Is this safe???
-	// message := (*[sessionDataSize]byte)(unsafe.Pointer(sessionData))[:]
-
-	var message bytes.Buffer
-	if err := gob.NewEncoder(&message).Encode(sessionData); err != nil {
-		return "", err
-	}
-
-	var nonce [24]byte
-	_, err := rand.Read(nonce[:])
+	message, err := proto.Marshal(sessionData)
 	if err != nil {
 		return "", err
 	}
 
-	box := secretbox.Seal(nonce[:], message.Bytes(), &nonce, &key)
+	var nonce [24]byte
+	_, err = rand.Read(nonce[:])
+	if err != nil {
+		return "", err
+	}
+
+	box := secretbox.Seal(nonce[:], message, &nonce, &key)
 
 	token := base64.RawURLEncoding.EncodeToString(box)
 	if len(token) > 4096 {
@@ -42,7 +40,7 @@ func EncodeToken(ctx context.Context, key [32]byte, sessionData *SessionData) (s
 	return token, nil
 }
 
-func DecodeToken(ctx context.Context, key [32]byte, token string) (*SessionData, error) {
+func DecodeToken(ctx context.Context, key [32]byte, token string) (*pb.SessionData, error) {
 	box, err := base64.RawURLEncoding.DecodeString(token)
 	if err != nil {
 		return nil, errInvalidToken
@@ -58,10 +56,8 @@ func DecodeToken(ctx context.Context, key [32]byte, token string) (*SessionData,
 		return nil, errInvalidToken
 	}
 
-	// sessionData = (*session.SessionData)(unsafe.Pointer(&dec[0]))
-	var sessionData *SessionData
-	r := bytes.NewReader(message)
-	if err := gob.NewDecoder(r).Decode(&sessionData); err != nil {
+	sessionData := &pb.SessionData{}
+	if err := proto.Unmarshal(message, sessionData); err != nil {
 		return nil, err
 	}
 	return sessionData, nil

@@ -13,6 +13,7 @@
     {
       devShell = pkgs.mkShell {
         buildInputs = (with pkgs; [
+          buf
           delve
           git
           go_1_21
@@ -22,6 +23,8 @@
           gotestsum
           jless
           ko
+          protobuf
+          protoc-gen-go
           watchexec
         ]);
       };

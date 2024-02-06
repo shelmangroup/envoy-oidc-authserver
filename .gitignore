@@ -1,5 +1,6 @@
 .direnv
 .env
 .task
+internal
 coverage.out
 shelman-authz
