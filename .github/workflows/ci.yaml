@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: shelmangroup-default
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v22
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: aldoborrero/direnv-nix-action@v2
+        with:
+          use_nix_profile: true
+
+      - name: Lint
+        run: task lint
+
+      - name: Test
+        run: task test

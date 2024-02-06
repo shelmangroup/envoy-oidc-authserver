@@ -5,6 +5,7 @@ tasks:
     deps: [test]
 
   test:
+    deps: [buf:generate]
     cmds:
       - gotestsum -- -short -coverprofile=coverage.out {{or .CLI_ARGS "./..."}}
 
@@ -13,7 +14,13 @@ tasks:
     cmds:
       - gotestsum --watch --format=short --format-hide-empty-pkg --format-hivis --post-run-command 'echo -e "\\n  🔹🔹🔹"'
 
+  buf:generate:
+    desc: Generate protobuf
+    cmds:
+      - buf generate
+
   lint:
+    deps: [buf:generate]
     desc: Lint all source code
     cmds:
       - golangci-lint run --fix --timeout 10m
@@ -31,6 +38,7 @@ tasks:
 
   dev:server:
     desc: Run envoy-oidc-authserver for local development
+    deps: [buf:generate]
     env:
       ENVOY_AUTHZ_SECRET_KEY: "G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t"
       ENVOY_AUTHZ_OPA_URL: http://localhost:9191
