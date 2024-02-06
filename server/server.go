@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/shelmangroup/shelman-authz/telemetry"
+	"github.com/shelmangroup/envoy-oidc-authserver/telemetry"
 )
 
 type Service interface {

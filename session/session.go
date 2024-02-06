@@ -6,7 +6,7 @@ import (
 
 	"github.com/grokify/go-pkce"
 
-	pb "github.com/shelmangroup/shelman-authz/internal/gen/session/v1"
+	pb "github.com/shelmangroup/envoy-oidc-authserver/internal/gen/session/v1"
 )
 
 func NewSessionData() *pb.SessionData {

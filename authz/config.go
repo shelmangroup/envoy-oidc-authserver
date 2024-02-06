@@ -8,7 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/shelmangroup/shelman-authz/oidc"
+	"github.com/shelmangroup/envoy-oidc-authserver/oidc"
 )
 
 type Config struct {

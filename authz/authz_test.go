@@ -12,7 +12,7 @@ import (
 	auth "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/service/auth/v3"
 	envoy_type "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/type/v3"
 
-	"github.com/shelmangroup/shelman-authz/oidc"
+	"github.com/shelmangroup/envoy-oidc-authserver/oidc"
 )
 
 func initializeMock(cfg *Config) (*Config, error) {

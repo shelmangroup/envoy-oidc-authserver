@@ -34,7 +34,7 @@ expiry:
   idTokens: "5m"
   refreshTokens:
     reuseInterval: "3s"
-    validIfNotUsedFor: "2160h" # 90 days
-    absoluteLifetime: "3960h" # 165 days
+    validIfNotUsedFor: "360h" # 15 days
+    absoluteLifetime: "720h" # 30 days
 
 enablePasswordDB: true

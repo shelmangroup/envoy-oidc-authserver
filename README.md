@@ -1,18 +1,19 @@
-# Shelman Authz
+# Envoy OIDC Authserver
 
-An implementation of Envoy External Authorization, focused on delivering authN/Z solutions for Kubernetes.
+An implementation of Envoy External Authorization, focused on delivering authN/Z solutions for Envoy L7 proxy.
+Compatible with Kubernetes Ingress classes like Projectcontour or Istio.
 
 Some of the features it provides:
 
-- Transparent login and logout
+- Transparent login
+
   - Retrieves OAuth2 Access tokens, ID tokens, and refresh tokens
   - Compatible with any standard OIDC Provider
 
 - Session management
-  - Configuration of session lifetime and idle timeouts
-  - Refreshes expired tokens automatically
 
-- Authz server is stateless, all state is stored as encrypted (NaCl) cookie data at the client.
+  - Server is stateless, all state is stored encrypted in client cookie data
+  - Refreshes expired tokens automatically
 
 - Open Policy Agent chaining request.
   - Allowing fine grained policy rules per request.

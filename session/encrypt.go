@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/shelmangroup/shelman-authz/internal/gen/session/v1"
+	pb "github.com/shelmangroup/envoy-oidc-authserver/internal/gen/session/v1"
 )
 
 var (

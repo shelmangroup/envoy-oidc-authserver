@@ -25,13 +25,11 @@ import (
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/shelmangroup/shelman-authz/internal/gen/session/v1"
-	"github.com/shelmangroup/shelman-authz/session"
+	pb "github.com/shelmangroup/envoy-oidc-authserver/internal/gen/session/v1"
+	"github.com/shelmangroup/envoy-oidc-authserver/session"
 )
 
-const (
-	ServiceName = "shelman-authz"
-)
+const ServiceName = "envoy-authz"
 
 type Service struct {
 	authv3connect.UnimplementedAuthorizationHandler

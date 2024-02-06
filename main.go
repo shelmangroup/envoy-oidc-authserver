@@ -10,14 +10,14 @@ import (
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffyaml"
 
-	"github.com/shelmangroup/shelman-authz/authz"
-	"github.com/shelmangroup/shelman-authz/logging"
-	"github.com/shelmangroup/shelman-authz/server"
-	"github.com/shelmangroup/shelman-authz/telemetry"
+	"github.com/shelmangroup/envoy-oidc-authserver/authz"
+	"github.com/shelmangroup/envoy-oidc-authserver/logging"
+	"github.com/shelmangroup/envoy-oidc-authserver/server"
+	"github.com/shelmangroup/envoy-oidc-authserver/telemetry"
 )
 
 func main() {
-	fs := flag.NewFlagSet("shelman-authz", flag.ContinueOnError)
+	fs := flag.NewFlagSet("envoy-oidc-authserver", flag.ContinueOnError)
 	addr := fs.String("listen-addr", ":8080", "address to listen on")
 	otlpAddr := fs.String("otlp-addr", ":4317", "address to send OTLP traces to")
 	opaURL := fs.String("opa-url", "", "base url to send OPA requests to")
@@ -27,7 +27,7 @@ func main() {
 	logLevel := fs.String("log-level", "info", "log level (debug, info, warn, error)")
 
 	err := ff.Parse(fs, os.Args[1:],
-		ff.WithEnvVarPrefix("SHELMAN_AUTHZ"),
+		ff.WithEnvVarPrefix("ENVOY_AUTHZ"),
 		ff.WithConfigFileFlag("config"),
 		ff.WithConfigFileParser(ffyaml.Parser),
 	)
@@ -49,7 +49,7 @@ func main() {
 	}
 	slog.SetDefault(logger)
 
-	slog.Info("🛠️ Hello Shelman Authz! 🛠️")
+	slog.Info("🛠️ Hello Shelman Envoy OIDC Authserver! 🛠️")
 
 	// Setup tracing
 	shutdown := telemetry.SetupTracing(*otlpAddr, "dev")

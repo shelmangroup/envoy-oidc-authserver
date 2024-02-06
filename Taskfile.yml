@@ -25,17 +25,17 @@ tasks:
       - golines --max-len=88 --base-formatter=gofumpt -w --ignored-dirs="vendor" .
 
   dev:
-    desc: Run shelman-authz and restart on source changes
+    desc: Run envoy-oidc-authserver and restart on source changes
     cmds:
       - watchexec --clear --restart --stop-signal INT --debounce 300ms -- task dev:server
 
   dev:server:
-    desc: Run shelman-authz for local development
+    desc: Run envoy-oidc-authserver for local development
     env:
-      SHELMAN_AUTHZ_SECRET_KEY: "G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t"
-      SHELMAN_AUTHZ_OPA_URL: http://localhost:9191
-      SHELMAN_AUTHZ_PROVIDERS_CONFIG: run/config/providers.yaml
-      SHELMAN_AUTHZ_LOG_LEVEL: debug
+      ENVOY_AUTHZ_SECRET_KEY: "G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t"
+      ENVOY_AUTHZ_OPA_URL: http://localhost:9191
+      ENVOY_AUTHZ_PROVIDERS_CONFIG: run/config/providers.yaml
+      ENVOY_AUTHZ_LOG_LEVEL: debug
     cmds:
       - go run .
 

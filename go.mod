@@ -1,4 +1,4 @@
-module github.com/shelmangroup/shelman-authz
+module github.com/shelmangroup/envoy-oidc-authserver
 
 go 1.21.5
 
