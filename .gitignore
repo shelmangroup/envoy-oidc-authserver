@@ -3,4 +3,4 @@
 .task
 internal
 coverage.out
-shelman-authz
+envoy-oidc-authserver
