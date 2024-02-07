@@ -44,12 +44,12 @@ func main() {
 
 	logger, err := logging.NewLogger(*logLevel, *logJson)
 	if err != nil {
-		slog.Error("logging error", err)
+		slog.Error("Logging error", err)
 		os.Exit(1)
 	}
 	slog.SetDefault(logger)
 
-	slog.Info("🛠️ Hello Shelman Envoy OIDC Authserver! 🛠️")
+	slog.Info("Hello from Shelman Group Envoy OIDC Authserver!")
 
 	// Setup tracing
 	shutdown := telemetry.SetupTracing(*otlpAddr, "dev")
