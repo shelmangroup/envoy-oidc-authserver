@@ -20,6 +20,7 @@
           go-task
           golangci-lint
           golines
+          goreleaser
           gotestsum
           jless
           ko

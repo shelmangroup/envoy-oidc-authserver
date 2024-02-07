@@ -1,0 +1,23 @@
+before:
+  hooks:
+    - task buf:generate
+
+builds:
+  - env: ["CGO_ENABLED=0"]
+    binary: envoy-oidc-authserver
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+kos:
+  - repository: ghcr.io/shelmangroup/envoy-oidc-authserver
+    tags:
+      - "{{.Version}}"
+      - latest
+    bare: true
+    platforms:
+      - linux/amd64
+      - linux/arm64
