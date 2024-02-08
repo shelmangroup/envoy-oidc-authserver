@@ -12,7 +12,6 @@ Some of the features it provides:
 
 - Session management
 
-  - Server is stateless, all state is stored encrypted in client cookie data
   - Refreshes expired tokens automatically
 
 - Open Policy Agent chaining request.

@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"errors"
 
 	"golang.org/x/crypto/nacl/secretbox"
@@ -16,30 +15,24 @@ var (
 	errInvalidToken = errors.New("invalid token")
 )
 
-func EncodeToken(ctx context.Context, key [32]byte, sessionData *pb.SessionData) (string, error) {
-
+func EncodeToken(ctx context.Context, key [32]byte, sessionData *pb.SessionData) ([]byte, error) {
 	message, err := proto.Marshal(sessionData)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var nonce [24]byte
 	_, err = rand.Read(nonce[:])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	box := secretbox.Seal(nonce[:], message, &nonce, &key)
 
-	token := base64.RawURLEncoding.EncodeToString(box)
-	return token, nil
+	return box, nil
 }
 
-func DecodeToken(ctx context.Context, key [32]byte, token string) (*pb.SessionData, error) {
-	box, err := base64.RawURLEncoding.DecodeString(token)
-	if err != nil {
-		return nil, errInvalidToken
-	}
+func DecodeToken(ctx context.Context, key [32]byte, box []byte) (*pb.SessionData, error) {
 	if len(box) < 24 {
 		return nil, errInvalidToken
 	}

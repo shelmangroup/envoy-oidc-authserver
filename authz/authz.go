@@ -27,6 +27,7 @@ import (
 
 	pb "github.com/shelmangroup/envoy-oidc-authserver/internal/gen/session/v1"
 	"github.com/shelmangroup/envoy-oidc-authserver/session"
+	"github.com/shelmangroup/envoy-oidc-authserver/store"
 )
 
 const ServiceName = "envoy-authz"
@@ -36,6 +37,7 @@ type Service struct {
 
 	cfg        *Config
 	secretKey  []byte
+	store      *store.Store
 	authClient authv3connect.AuthorizationClient
 }
 
@@ -66,6 +68,7 @@ func NewService(cfg *Config, opaURL, secretKey string) *Service {
 	return &Service{
 		cfg:        cfg,
 		authClient: c,
+		store:      store.NewStore(),
 		secretKey:  []byte(secretKey),
 	}
 }
@@ -157,7 +160,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 
 	// If the request is for the callback URI, then we need to exchange the code for tokens
 	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") && sessionData.AccessToken == "" {
-		headers, err := s.retriveTokens(ctx, provider, sessionData, requestedURL, sessionCookieName, sessionId)
+		err := s.retriveTokens(ctx, provider, sessionData, requestedURL, sessionCookieName, sessionId)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +170,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to requested url"), nil
 	}
 
-	respHeaders, err := s.validateTokens(ctx, provider, sessionData, sessionCookieName, sessionId)
+	err := s.validateTokens(ctx, provider, sessionData, sessionCookieName, sessionId)
 	if err != nil {
 		slog.Warn("couldn't validating tokens", slog.String("err", err.Error()))
 		headers, err := s.newSession(ctx, sourceIP, requestedURL, sessionCookieName, provider)
@@ -179,19 +182,17 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 
 	slog.Debug("setting authorization header to upstream request", slog.String("session_id", sessionId))
 	headers = append(headers, s.setAuthorizationHeader(sessionData.IdToken))
-	return s.authResponse(true, envoy_type.StatusCode_OK, headers, respHeaders, "success"), nil
+	return s.authResponse(true, envoy_type.StatusCode_OK, headers, nil, "success"), nil
 }
 
-func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, requestedURL, sessionCookieName, sessionId string) ([]*core.HeaderValueOption, error) {
-	headers := []*core.HeaderValueOption{}
-
+func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, requestedURL, sessionCookieName, sessionId string) error {
 	code, err := s.getCodeQueryParam(requestedURL)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	tokens, err := provider.p.RetriveTokens(ctx, code, sessionData.CodeVerifier)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Copy the tokens into the session data
@@ -200,45 +201,39 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 	sessionData.IdToken = tokens.IDToken
 	sessionData.Expiry = timestamppb.New(tokens.Expiry)
 
-	slog.Debug("successfully acquried tokens, now storing it to session cookie", slog.String("expire", tokens.Expiry.String()))
+	// slog.Debug("successfully acquried tokens, now storing it to session cookie", slog.Any("sessionData", sessionData))
 
 	enc, err := session.EncodeToken(ctx, [32]byte(s.secretKey), sessionData)
 	if err != nil {
 		slog.Error("error encrypting session data", slog.String("err", err.Error()))
-		return nil, err
+		return err
 	}
 	slog.Debug("Encrypted SessionData", slog.Int("byte_len", len(enc)))
 
-	cookie := &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    sessionId + "." + enc,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   provider.SecureCookie,
-		SameSite: http.SameSiteLaxMode,
+	// store session data in cache
+	if err := s.store.Set(ctx, sessionId, enc); err != nil {
+		return err
 	}
-	headers = append(headers, s.setCookie(cookie)...)
-	return headers, nil
+
+	return nil
 }
 
 // Validates and poteintially refreshes the token
-func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, d *pb.SessionData, sessionCookieName, sessionId string) ([]*core.HeaderValueOption, error) {
-	headers := []*core.HeaderValueOption{}
-
+func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, d *pb.SessionData, sessionCookieName, sessionId string) error {
 	expired, err := provider.p.VerifyTokens(ctx, d.AccessToken, d.IdToken)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !expired {
-		return nil, nil
+		return nil
 	}
 
 	if expired && d.RefreshToken == "" {
-		return nil, errors.New("token expired and no refresh token found, add scope=offline_access to the auth request to get a refresh token")
+		return errors.New("token expired and no refresh token found, add scope=offline_access to the auth request to get a refresh token")
 	}
 	t, err := provider.p.RefreshTokens(ctx, d.RefreshToken, d.AccessToken)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	d.RefreshToken = t.RefreshToken
@@ -250,20 +245,14 @@ func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, d 
 	enc, err := session.EncodeToken(ctx, [32]byte(s.secretKey), d)
 	if err != nil {
 		slog.Error("error encrypting session data", slog.String("err", err.Error()))
-		return nil, err
+		return err
 	}
 
-	cookie := &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    sessionId + "." + enc,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   provider.SecureCookie,
-		SameSite: http.SameSiteLaxMode,
+	if err := s.store.Set(ctx, sessionId, enc); err != nil {
+		return err
 	}
-	headers = append(headers, s.setCookie(cookie)...)
 
-	return headers, nil
+	return nil
 }
 
 func (s *Service) newSession(ctx context.Context, sourceIP, requestedURL, sessionCookieName string, provider *OIDCProvider) ([]*core.HeaderValueOption, error) {
@@ -283,14 +272,18 @@ func (s *Service) newSession(ctx context.Context, sourceIP, requestedURL, sessio
 	if err != nil {
 		return nil, err
 	}
-	slog.Debug("NewSession Encrypted SessionData", slog.Int("byte_len", len(enc)), slog.String("encrypted", enc))
+
+	// store session data in cache
+	if err := s.store.Set(ctx, sessionCookieToken, enc); err != nil {
+		return nil, err
+	}
 
 	idpAuthURL := provider.p.IdpAuthURL(sessionData.CodeChallenge)
 	headers = append(headers, s.setRedirectHeader(idpAuthURL))
 	// set cookie with session id and redirect to Idp
 	cookie := &http.Cookie{
 		Name:     sessionCookieName,
-		Value:    sessionCookieToken + "." + enc,
+		Value:    sessionCookieToken,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   provider.SecureCookie,
@@ -318,28 +311,28 @@ func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeC
 		return nil, ""
 	}
 
-	// Split cookie value with . delimeter
-	cookieValues := strings.Split(cookie.Value, ".")
-	if len(cookieValues) != 2 {
-		slog.Error("cookie values != 2", slog.Int("values_len", len(cookieValues)))
+	sessionId := cookie.Value
+	slog.Debug("client source ip", slog.String("session_id", sessionId), slog.String("ip", sourceIP))
+
+	d, err := s.store.Cache.Get(ctx, sessionId)
+	if err != nil {
+		slog.Error("error getting session data from cache", slog.String("err", err.Error()))
 		return nil, ""
 	}
 
-	slog.Debug("client source ip", slog.String("session_id", cookieValues[0]), slog.String("ip", sourceIP))
-
-	sessionData, err := session.DecodeToken(ctx, [32]byte(s.secretKey), cookieValues[1])
+	sessionData, err = session.DecodeToken(ctx, [32]byte(s.secretKey), d)
 	if err != nil {
 		slog.Error("error decrypt session data", slog.String("err", err.Error()))
 		return nil, ""
 	}
-	slog.Debug("getting session data from session cookie", slog.String("session_id", cookieValues[0]), slog.String("session_data_expiry", sessionData.Expiry.AsTime().String()))
+	slog.Debug("getting session data from session cookie", slog.String("session_id", sessionId), slog.String("session_data_expiry", sessionData.Expiry.AsTime().String()))
 
 	if sessionData.SourceIp != sourceIP {
-		slog.Warn("source ip missmatch, re-auth needed!", slog.String("session_id", cookieValues[0]), slog.String("session_ip", sessionData.SourceIp), slog.String("req_ip", sourceIP))
+		slog.Warn("source ip missmatch, re-auth needed!", slog.String("session_id", sessionId), slog.String("session_ip", sessionData.SourceIp), slog.String("req_ip", sourceIP))
 		return nil, ""
 	}
 
-	return sessionData, cookieValues[0]
+	return sessionData, sessionId
 }
 
 // parse cookie header string into []*http.Cookie struct
@@ -439,11 +432,11 @@ func (s *Service) authResponse(success bool, httpStatusCode envoy_type.StatusCod
 func realIP(headers map[string]string) string {
 	var ip string
 
-	var trueClientIP = "true-client-ip"
+	var envoyExternalAddress = "x-envoy-external-address"
 	var xForwardedFor = "x-forwarded-for"
 	var xRealIP = "x-real-ip"
 
-	if tcip, ok := headers[trueClientIP]; ok {
+	if tcip, ok := headers[envoyExternalAddress]; ok {
 		ip = tcip
 	} else if xrip, ok := headers[xRealIP]; ok {
 		ip = xrip

@@ -5,10 +5,14 @@ on:
       - "v*"
 jobs:
   goreleaser:
-    # runs-on: shelmangroup-default
-    runs-on: ubuntu-latest
+    runs-on: shelmangroup-default
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            flake.lock
+            flake.nix
+            .envrc
 
       - uses: cachix/install-nix-action@v22
         with:
@@ -16,6 +20,8 @@ jobs:
       - uses: aldoborrero/direnv-nix-action@v2
         with:
           use_nix_profile: true
+
+      - uses: actions/checkout@v4
 
       - name: Log in to the Container registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1

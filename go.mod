@@ -9,8 +9,10 @@ require (
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
 	connectrpc.com/otelconnect v0.6.0
+	github.com/eko/gocache/lib/v4 v4.1.5
 	github.com/gogo/googleapis v1.4.1
 	github.com/google/uuid v1.5.0
+	github.com/grokify/go-pkce v0.2.3
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/stretchr/testify v1.8.4
 	github.com/zitadel/oidc/v3 v3.8.1
@@ -27,10 +29,23 @@ require (
 )
 
 require (
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/golang/mock v1.6.0 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/prometheus/client_golang v1.14.0 // indirect
+	github.com/prometheus/client_model v0.3.0 // indirect
+	github.com/prometheus/common v0.37.0 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
+)
+
+require (
 	buf.build/gen/go/cncf/xds/protocolbuffers/go v1.32.0-20231212190141-23263dcfaa96.1 // indirect
 	buf.build/gen/go/envoyproxy/protoc-gen-validate/protocolbuffers/go v1.32.0-20231130202533-71881f09a0c5.1 // indirect
+	github.com/allegro/bigcache v1.2.1
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/eko/gocache/store/bigcache/v4 v4.2.1
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
@@ -38,7 +53,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/grokify/go-pkce v0.2.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/lmittmann/tint v1.0.3
 	github.com/mattn/go-isatty v0.0.20
