@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	errTokenTooLong = errors.New("token too long")
 	errInvalidToken = errors.New("invalid token")
 )
 
@@ -33,10 +32,6 @@ func EncodeToken(ctx context.Context, key [32]byte, sessionData *pb.SessionData)
 	box := secretbox.Seal(nonce[:], message, &nonce, &key)
 
 	token := base64.RawURLEncoding.EncodeToString(box)
-	if len(token) > 4096 {
-		return "", errTokenTooLong
-	}
-
 	return token, nil
 }
 
