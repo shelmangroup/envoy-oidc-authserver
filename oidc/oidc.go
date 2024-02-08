@@ -74,7 +74,7 @@ func (o *OIDCProvider) IdpAuthURL(codeChallenge string) string {
 
 func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken string) (bool, error) {
 	var expired bool
-	_, err := rp.VerifyTokens[*oidc.IDTokenClaims](ctx, accessToken, idToken, o.provider.IDTokenVerifier())
+	t, err := rp.VerifyTokens[*oidc.IDTokenClaims](ctx, accessToken, idToken, o.provider.IDTokenVerifier())
 	if err != nil {
 		if err == oidc.ErrExpired {
 			expired = true
@@ -82,6 +82,7 @@ func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken st
 			return false, err
 		}
 	}
+	slog.Debug("tokens verified", slog.String("expire", t.GetExpiration().String()))
 	return expired, nil
 }
 
