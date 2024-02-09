@@ -31,7 +31,8 @@ func (o *OIDCMockProvider) RetriveTokens(ctx context.Context, code, codeVerifier
 			RefreshToken: "bar",
 			Expiry:       time.Now().Add(1 * time.Hour),
 		},
-		IDToken: "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTA2MTI5MDIyfQ",
+		IDToken:       "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTA2MTI5MDIyfQ",
+		IDTokenClaims: &oidc.IDTokenClaims{},
 	}, nil
 }
 
@@ -48,6 +49,7 @@ func (o *OIDCMockProvider) RefreshTokens(ctx context.Context, refreshToken, clie
 			RefreshToken: "bar",
 			Expiry:       time.Now().Add(2 * time.Hour),
 		},
-		IDToken: "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaW1111111111111111asda",
+		IDToken:       "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaW1111111111111111asda",
+		IDTokenClaims: &oidc.IDTokenClaims{},
 	}, nil
 }

@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	errInvalidToken = errors.New("invalid token")
+	errInvalid = errors.New("invalid encrypted data")
 )
 
-func EncodeToken(ctx context.Context, key [32]byte, sessionData *pb.SessionData) ([]byte, error) {
+func EncryptSession(ctx context.Context, key [32]byte, sessionData *pb.SessionData) ([]byte, error) {
 	message, err := proto.Marshal(sessionData)
 	if err != nil {
 		return nil, err
@@ -32,16 +32,16 @@ func EncodeToken(ctx context.Context, key [32]byte, sessionData *pb.SessionData)
 	return box, nil
 }
 
-func DecodeToken(ctx context.Context, key [32]byte, box []byte) (*pb.SessionData, error) {
+func DecryptSession(ctx context.Context, key [32]byte, box []byte) (*pb.SessionData, error) {
 	if len(box) < 24 {
-		return nil, errInvalidToken
+		return nil, errInvalid
 	}
 
 	var nonce [24]byte
 	copy(nonce[:], box[:24])
 	message, ok := secretbox.Open(nil, box[24:], &nonce, &key)
 	if !ok {
-		return nil, errInvalidToken
+		return nil, errInvalid
 	}
 
 	sessionData := &pb.SessionData{}

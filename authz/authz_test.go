@@ -54,7 +54,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	require.NoError(t, err, "init cfg should not have failed")
 
 	secretKey := []byte("G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t")
-	authz := Service{cfg: testCfg, store: store.NewStore(), secretKey: secretKey}
+	authz := Service{cfg: testCfg, store: store.NewStore(nil), secretKey: secretKey}
 
 	//1. Check Authorization response without callback and no cookie req.
 	initialRequestedURL := "http://foo.bar/"

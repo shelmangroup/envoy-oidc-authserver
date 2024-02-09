@@ -29,9 +29,9 @@ connectors:
 # Uncomment this block to enable configuration for the expiration time durations.
 # Is possible to specify units using only s, m and h suffixes.
 expiry:
-  deviceRequests: "5m"
+  deviceRequests: "1m"
   signingKeys: "6h"
-  idTokens: "5m"
+  idTokens: "1m"
   refreshTokens:
     reuseInterval: "3s"
     validIfNotUsedFor: "360h" # 15 days

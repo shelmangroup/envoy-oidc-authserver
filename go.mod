@@ -10,10 +10,10 @@ require (
 	connectrpc.com/grpcreflect v1.2.0
 	connectrpc.com/otelconnect v0.6.0
 	github.com/eko/gocache/lib/v4 v4.1.5
+	github.com/eko/gocache/store/redis/v4 v4.2.1
 	github.com/gogo/googleapis v1.4.1
 	github.com/google/uuid v1.5.0
 	github.com/grokify/go-pkce v0.2.3
-	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/stretchr/testify v1.8.4
 	github.com/zitadel/oidc/v3 v3.8.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.46.1
@@ -31,6 +31,7 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
@@ -42,10 +43,9 @@ require (
 require (
 	buf.build/gen/go/cncf/xds/protocolbuffers/go v1.32.0-20231212190141-23263dcfaa96.1 // indirect
 	buf.build/gen/go/envoyproxy/protoc-gen-validate/protocolbuffers/go v1.32.0-20231130202533-71881f09a0c5.1 // indirect
-	github.com/allegro/bigcache v1.2.1
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/eko/gocache/store/bigcache/v4 v4.2.1
+	github.com/eko/gocache/store/go_cache/v4 v4.2.1
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
@@ -57,7 +57,10 @@ require (
 	github.com/lmittmann/tint v1.0.3
 	github.com/mattn/go-isatty v0.0.20
 	github.com/muhlemmer/gu v0.3.1 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/redis/go-redis/v9 v9.4.0
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/zitadel/logging v0.5.0 // indirect
