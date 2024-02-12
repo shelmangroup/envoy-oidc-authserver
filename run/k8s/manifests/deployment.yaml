@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oidc-authserver
+spec:
+  replicas: 3
+  template:
+    spec:
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/component
+                      operator: In
+                      values:
+                        - oidc-authserver
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+      containers:
+        - name: oidc-authserver
+          image: ghcr.io/shelmangroup/envoy-oidc-authserver
+          ports:
+            - name: grpc
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: ENVOY_AUTHZ_OPA_URL
+              value: http://localhost:9191
+            # - name: ENVOY_AUTHZ_OTLP_ADDR
+            #   value: otel-collector.monitoring.svc.cluster.local:14317
+            - name: ENVOY_AUTHZ_PROVIDERS_CONFIG
+              value: /run/oidc-providers.yaml
+            - name: ENVOY_AUTHZ_REDIS_ADDRS
+              value: rfs-redis:26379
+            - name: ENVOY_AUTHZ_LOG_LEVEL
+              value: info
+            - name: ENVOY_AUTHZ_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oidc-authserver
+                  key: secret-key
+          volumeMounts:
+            - mountPath: /run
+              name: config
+              readOnly: true
+          readinessProbe:
+            grpc:
+              port: 8080
+          livenessProbe:
+            grpc:
+              port: 8080
+        - name: opa
+          image: docker.io/openpolicyagent/opa:latest-envoy-static
+          args:
+            - run
+            - --server
+            - --log-level=debug
+            - --set=plugins.envoy_ext_authz_grpc.addr=:9191
+            - --set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow
+            - --set=decision_logs.console=true
+            - --set=status.console=true
+            - --ignore=.*
+            - /policies/policy.rego
+          ports:
+            - name: grpc
+              containerPort: 9191
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /policies
+              name: opa-policy
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            defaultMode: 420
+            name: oidc-authserver
+        - name: opa-policy
+          configMap:
+            defaultMode: 420
+            name: opa-policy

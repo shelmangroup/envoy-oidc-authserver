@@ -1,0 +1,14 @@
+providers:
+  # - issuerURL: https://idp.example.com/app/o/test/
+  #   callbackURI: https://example.com/_auth/callback
+  #   clientID: client-id
+  #   clientSecret: secret
+  #   cookieNamePrefix: test
+  #   secureCookie: true
+  #   scopes:
+  #     - openid
+  #     - profile
+  #     - email
+  #   headerMatch:
+  #     name: :authority
+  #     exact: myapp.example.com
