@@ -13,7 +13,7 @@ import (
 )
 
 type Store struct {
-	*cache.ChainCache[[]byte]
+	*cache.ChainCache[any]
 }
 
 func NewStore(redisAddrs []string) *Store {
@@ -22,8 +22,8 @@ func NewStore(redisAddrs []string) *Store {
 
 	if redisAddrs == nil {
 		return &Store{
-			cache.NewChain[[]byte](
-				cache.New[[]byte](gocacheStore),
+			cache.NewChain[any](
+				cache.New[any](gocacheStore),
 			),
 		}
 	}
@@ -35,11 +35,10 @@ func NewStore(redisAddrs []string) *Store {
 		SentinelAddrs: redisAddrs,
 	})
 	redisStore := redis_store.NewRedis(redisClient, store.WithExpiration(24*time.Hour))
-
 	return &Store{
-		cache.NewChain[[]byte](
-			cache.New[[]byte](gocacheStore),
-			cache.New[[]byte](redisStore),
+		cache.NewChain[any](
+			cache.New[any](gocacheStore),
+			cache.New[any](redisStore),
 		),
 	}
 }

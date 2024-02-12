@@ -306,7 +306,14 @@ func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeC
 		return nil, ""
 	}
 
-	sessionData, err = session.DecryptSession(ctx, [32]byte(s.secretKey), enc)
+	switch v := enc.(type) {
+	case []byte:
+		enc = v
+	case string:
+		enc = []byte(v)
+	}
+
+	sessionData, err = session.DecryptSession(ctx, [32]byte(s.secretKey), enc.([]byte))
 	if err != nil {
 		slog.Error("error decrypt session data", slog.String("err", err.Error()))
 		return nil, ""
