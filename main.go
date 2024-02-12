@@ -19,7 +19,7 @@ func main() {
 
 	fs := ff.NewFlagSet("envoy-oidc-authserver")
 	addr := fs.String('s', "listen-addr", ":8080", "address to listen on")
-	otlpAddr := fs.StringLong("otlp-addr", ":4317", "address to send OTLP traces to")
+	otlpAddr := fs.StringLong("otlp-addr", "", "address to send OTLP traces to")
 	redisAddrs := fs.StringSet('r', "redis-addrs", "Sentinel addresses to use for Redis cache")
 	opaURL := fs.StringLong("opa-url", "", "base url to send OPA requests to")
 	secretKey := fs.StringLong("secret-key", "", "secret key used to encrypt JWT tokens")
@@ -54,8 +54,10 @@ func main() {
 	slog.Info("Hello from Shelman Group Envoy OIDC Authserver!")
 
 	// Setup tracing
-	shutdown := telemetry.SetupTracing(*otlpAddr, "dev")
-	defer shutdown()
+	if *otlpAddr != "" {
+		shutdown := telemetry.SetupTracing(*otlpAddr)
+		defer shutdown()
+	}
 
 	// read config file
 	c, err := authz.ConfigFromXmlFile(*providersConfig)

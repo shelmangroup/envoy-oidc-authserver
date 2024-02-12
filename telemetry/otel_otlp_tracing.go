@@ -6,17 +6,15 @@ import (
 	"log/slog"
 	"net/http"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"go.opentelemetry.io/contrib/propagators/aws/xray"
 	"go.opentelemetry.io/contrib/zpages"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.13.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Global variables
@@ -30,13 +28,11 @@ const (
 )
 
 // SetupTracing sets up the OpenTelemetry tracing system.
-func SetupTracing(otlpAddr, environ string) func() {
+func SetupTracing(otlpAddr string) func() {
 	ctx := context.Background()
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
-			// semconv.ServiceNameKey.String(revision.AppName),
-			// semconv.ServiceVersionKey.String(revision.AppVersion),
-			semconv.DeploymentEnvironmentKey.String(environ),
+			semconv.ServiceName("envoy-oidc-authserver"),
 		),
 	)
 
@@ -80,7 +76,6 @@ func SetupTracing(otlpAddr, environ string) func() {
 
 	// Register the trace context and baggage propagators so data is propagated across services/processes.
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
-		xray.Propagator{},
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
