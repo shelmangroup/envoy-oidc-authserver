@@ -17,17 +17,16 @@ type Store struct {
 }
 
 func NewStore(redisAddrs []string) *Store {
-	gocacheClient := gocache.New(1*time.Hour, 10*time.Minute)
-	gocacheStore := gocache_store.NewGoCache(gocacheClient)
-
 	if redisAddrs == nil {
+		gocacheClient := gocache.New(24*time.Hour, 10*time.Minute)
+		gocacheStore := gocache_store.NewGoCache(gocacheClient)
+
 		return &Store{
 			cache.New[any](gocacheStore),
 		}
 	}
 
-	slog.Info("Using Redis cache", slog.Any("addrs", redisAddrs), slog.Int("len", len(redisAddrs)))
-
+	slog.Info("Using Redis Sentinel cache", slog.Any("sentinel addrs", redisAddrs))
 	redisClient := redis.NewFailoverClient(&redis.FailoverOptions{
 		MasterName:    "mymaster",
 		SentinelAddrs: redisAddrs,
