@@ -13,6 +13,8 @@ import (
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Create auth provicer interface
@@ -29,6 +31,10 @@ type OIDCProvider struct {
 	provider rp.RelyingParty
 	isPKCE   bool
 }
+
+var (
+	tracer = otel.Tracer("oidc")
+)
 
 // NewOIDCProvider creates a new oidc provider
 func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes []string) (*OIDCProvider, error) {
@@ -74,20 +80,31 @@ func (o *OIDCProvider) IdpAuthURL(codeChallenge string) string {
 
 func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken string) (bool, error) {
 	var expired bool
-	_, err := rp.VerifyTokens[*oidc.IDTokenClaims](ctx, accessToken, idToken, o.provider.IDTokenVerifier())
+	ctx, span := tracer.Start(ctx, "VerifyTokens")
+	defer span.End()
+
+	t, err := rp.VerifyTokens[*oidc.IDTokenClaims](ctx, accessToken, idToken, o.provider.IDTokenVerifier())
 	if err != nil {
 		if err == oidc.ErrExpired {
 			expired = true
 		} else {
+			span.RecordError(err)
 			return false, err
 		}
 	}
+	span.SetAttributes(
+		attribute.String("issuer", t.GetIssuer()),
+		attribute.String("expire", t.GetExpiration().String()),
+		attribute.Bool("has_expired", expired),
+	)
 	return expired, nil
 }
 
 // RetriveTokens retrieves the tokens from the idp callback redirect and returns them
 // `code` is the `code` query parameter from the idp callback redirect
 func (o *OIDCProvider) RetriveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
+	ctx, span := tracer.Start(ctx, "RetriveTokens")
+	defer span.End()
 	slog.Debug("retriving tokens", slog.String("authorization_code", code), slog.String("code_verifier", codeVerifier))
 	var opts []rp.CodeExchangeOpt
 

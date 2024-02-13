@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 
+	"go.opentelemetry.io/otel"
 	"golang.org/x/crypto/nacl/secretbox"
 	"google.golang.org/protobuf/proto"
 
@@ -13,9 +14,13 @@ import (
 
 var (
 	errInvalid = errors.New("invalid encrypted data")
+	tracer     = otel.Tracer("session")
 )
 
 func EncryptSession(ctx context.Context, key [32]byte, sessionData *pb.SessionData) ([]byte, error) {
+	_, span := tracer.Start(ctx, "EncryptSession")
+	defer span.End()
+
 	message, err := proto.Marshal(sessionData)
 	if err != nil {
 		return nil, err
@@ -33,6 +38,8 @@ func EncryptSession(ctx context.Context, key [32]byte, sessionData *pb.SessionDa
 }
 
 func DecryptSession(ctx context.Context, key [32]byte, box []byte) (*pb.SessionData, error) {
+	_, span := tracer.Start(ctx, "DecryptSession")
+	defer span.End()
 	if len(box) < 24 {
 		return nil, errInvalid
 	}

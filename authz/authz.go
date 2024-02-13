@@ -21,6 +21,8 @@ import (
 	"github.com/gogo/googleapis/google/rpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/net/http2"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 
@@ -30,6 +32,10 @@ import (
 )
 
 const ServiceName = "envoy-authz"
+
+var (
+	tracer = otel.Tracer("authz")
+)
 
 type Service struct {
 	authv3connect.UnimplementedAuthorizationHandler
@@ -135,6 +141,9 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 }
 
 func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_HttpRequest, provider *OIDCProvider) (*auth.CheckResponse, error) {
+	ctx, span := tracer.Start(ctx, "authProcess")
+	defer span.End()
+
 	var headers []*core.HeaderValueOption
 	var sessionCookieName = provider.CookieNamePrefix + "-" + ServiceName
 
@@ -147,6 +156,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		slog.Debug("session data not found in cookie, creating new")
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
 		if err != nil {
+			span.RecordError(err)
 			return nil, err
 		}
 		// set downstream headers and redirect to Idp
@@ -154,11 +164,16 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	}
 
 	slog.Debug("session data found in cookie", slog.String("session_id", sessionId), slog.String("url", requestedURL))
+	span.SetAttributes(
+		attribute.String("session_id", sessionId),
+		attribute.String("requested_url", requestedURL),
+	)
 
 	// If the request is for the callback URI, then we need to exchange the code for tokens
 	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") && sessionData.AccessToken == "" {
 		err := s.retriveTokens(ctx, provider, sessionData, requestedURL, sessionCookieName, sessionId)
 		if err != nil {
+			span.RecordError(err)
 			return nil, err
 		}
 		// set downstream headers and redirect client to requested URL from session cookie
@@ -172,6 +187,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		slog.Warn("couldn't validating tokens", slog.String("err", err.Error()))
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
 		if err != nil {
+			span.RecordError(err)
 			return nil, err
 		}
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to Idp"), nil
