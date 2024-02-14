@@ -23,6 +23,9 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/http2"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 
@@ -87,6 +90,9 @@ func (s *Service) Name() string {
 }
 
 func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequest]) (*connect.Response[auth.CheckResponse], error) {
+	ctx, span := tracer.Start(ctx, "Check")
+	defer span.End()
+
 	httpReq := req.Msg.GetAttributes().GetRequest().GetHttp()
 	reqHeaders := httpReq.GetHeaders()
 	var resp *auth.CheckResponse
@@ -108,14 +114,31 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	}
 	if provider == nil {
 		slog.Error("no header matches any provider")
+		span.RecordError(errors.New("no header matches any auth provider"))
+		span.SetStatus(codes.Error, "no header matches any auth provider")
 		return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Unauthorized, nil, nil, "no header matches any auth provider")), nil
 	}
+
+	span.AddEvent("provider",
+		trace.WithAttributes(
+			attribute.String("issuer_url", provider.IssuerURL),
+			attribute.String("client_id", provider.ClientID),
+			attribute.String("callback_uri", provider.CallbackURI),
+			attribute.String("cookie_name_prefix", provider.CookieNamePrefix),
+			attribute.Bool("opa_enabled", provider.OPAEnabled),
+			attribute.Bool("allow_auth_header", provider.AllowAuthHeader),
+			attribute.Bool("secure_cookie", provider.SecureCookie),
+			attribute.StringSlice("scopes", provider.Scopes),
+			attribute.String("header_match_name", provider.HeaderMatch.Name),
+		),
+	)
 
 	if provider.OPAEnabled && s.authClient != nil {
 		slog.Debug("OPA is enabled, sending request to OPA for authorization")
 		opaResp, err := s.authClient.Check(ctx, req)
 		if err != nil {
-			slog.Error("OPA check failed", slog.String("err", err.Error()))
+			span.RecordError(err, trace.WithStackTrace(true))
+			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
 		if opaResp.Msg.GetStatus().GetCode() == int32(rpc.PERMISSION_DENIED) {
@@ -131,6 +154,8 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	resp, err := s.authProcess(ctx, httpReq, provider)
 	if err != nil {
 		slog.Error("authProccess failed", slog.String("err", err.Error()))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		resp = s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())
 	}
 
@@ -156,7 +181,8 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		slog.Debug("session data not found in cookie, creating new")
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
 		if err != nil {
-			span.RecordError(err)
+			span.RecordError(err, trace.WithStackTrace(true))
+			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
 		// set downstream headers and redirect to Idp
@@ -164,16 +190,20 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	}
 
 	slog.Debug("session data found in cookie", slog.String("session_id", sessionId), slog.String("url", requestedURL))
-	span.SetAttributes(
-		attribute.String("session_id", sessionId),
-		attribute.String("requested_url", requestedURL),
-	)
+	if span.IsRecording() {
+		span.SetAttributes(
+			semconv.URLFull(requestedURL),
+			semconv.SourceAddress(req.GetHeaders()["x-forwarded-for"]),
+			semconv.SessionID(sessionId),
+		)
+	}
 
 	// If the request is for the callback URI, then we need to exchange the code for tokens
 	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") && sessionData.AccessToken == "" {
 		err := s.retriveTokens(ctx, provider, sessionData, requestedURL, sessionCookieName, sessionId)
 		if err != nil {
-			span.RecordError(err)
+			span.RecordError(err, trace.WithStackTrace(true))
+			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
 		// set downstream headers and redirect client to requested URL from session cookie
@@ -187,7 +217,8 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		slog.Warn("couldn't validating tokens", slog.String("err", err.Error()))
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
 		if err != nil {
-			span.RecordError(err)
+			span.RecordError(err, trace.WithStackTrace(true))
+			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to Idp"), nil

@@ -15,6 +15,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Create auth provicer interface
@@ -92,10 +94,10 @@ func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken st
 			return false, err
 		}
 	}
-	span.SetAttributes(
+	span.AddEvent("log", trace.WithAttributes(
 		attribute.String("issuer", t.GetIssuer()),
 		attribute.String("expire", t.GetExpiration().String()),
-		attribute.Bool("has_expired", expired),
+		attribute.Bool("has_expired", expired)),
 	)
 	return expired, nil
 }
@@ -105,7 +107,7 @@ func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken st
 func (o *OIDCProvider) RetriveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
 	ctx, span := tracer.Start(ctx, "RetriveTokens")
 	defer span.End()
-	slog.Debug("retriving tokens", slog.String("authorization_code", code), slog.String("code_verifier", codeVerifier))
+
 	var opts []rp.CodeExchangeOpt
 
 	if o.isPKCE {
@@ -115,13 +117,26 @@ func (o *OIDCProvider) RetriveTokens(ctx context.Context, code, codeVerifier str
 
 	tokens, err := rp.CodeExchange[*oidc.IDTokenClaims](ctx, code, o.provider, opts...)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		slog.Error("retriving token", slog.String("err", err.Error()))
 		return nil, err
 	}
 
 	if !tokens.Valid() {
+		span.RecordError(errors.New("RetriveTokens: invalid token"))
+		span.SetStatus(codes.Error, "RetriveTokens: invalid token")
 		return nil, errors.New("RetriveTokens: invalid token")
 	}
+
+	span.AddEvent("log",
+		trace.WithAttributes(
+			attribute.String("issuer", tokens.IDTokenClaims.GetIssuer()),
+			attribute.Bool("is_pkce", o.isPKCE),
+			attribute.String("expire", tokens.IDTokenClaims.GetExpiration().String()),
+			attribute.String("subject", tokens.IDTokenClaims.GetSubject()),
+		),
+	)
 
 	return tokens, nil
 }
@@ -129,12 +144,27 @@ func (o *OIDCProvider) RetriveTokens(ctx context.Context, code, codeVerifier str
 // RefreshTokens refreshes the tokens and returns them
 // clientAssertion is the client assertion jwt (tokens.AccessToken)
 func (o *OIDCProvider) RefreshTokens(ctx context.Context, refreshToken, clientAssertion string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
+	ctx, span := tracer.Start(ctx, "RefreshTokens")
+	defer span.End()
+
 	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.provider, refreshToken, clientAssertion, oidc.ClientAssertionTypeJWTAssertion)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	if !tokens.Valid() {
+		span.RecordError(errors.New("RefreshTokens: invalid token"))
+		span.SetStatus(codes.Error, "RefreshTokens: invalid token")
 		return nil, errors.New("RefreshTokens: invalid token")
 	}
+	span.AddEvent("log",
+		trace.WithAttributes(
+			attribute.String("issuer", tokens.IDTokenClaims.GetIssuer()),
+			attribute.Bool("is_pkce", o.isPKCE),
+			attribute.String("expire", tokens.IDTokenClaims.GetExpiration().String()),
+			attribute.String("subject", tokens.IDTokenClaims.GetSubject()),
+		),
+	)
 	return tokens, nil
 }

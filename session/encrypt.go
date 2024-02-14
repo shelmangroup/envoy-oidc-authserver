@@ -6,6 +6,8 @@ import (
 	"errors"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/crypto/nacl/secretbox"
 	"google.golang.org/protobuf/proto"
 
@@ -23,12 +25,16 @@ func EncryptSession(ctx context.Context, key [32]byte, sessionData *pb.SessionDa
 
 	message, err := proto.Marshal(sessionData)
 	if err != nil {
+		span.RecordError(err, trace.WithStackTrace(true))
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	var nonce [24]byte
 	_, err = rand.Read(nonce[:])
 	if err != nil {
+		span.RecordError(err, trace.WithStackTrace(true))
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
@@ -40,6 +46,7 @@ func EncryptSession(ctx context.Context, key [32]byte, sessionData *pb.SessionDa
 func DecryptSession(ctx context.Context, key [32]byte, box []byte) (*pb.SessionData, error) {
 	_, span := tracer.Start(ctx, "DecryptSession")
 	defer span.End()
+
 	if len(box) < 24 {
 		return nil, errInvalid
 	}
@@ -53,6 +60,8 @@ func DecryptSession(ctx context.Context, key [32]byte, box []byte) (*pb.SessionD
 
 	sessionData := &pb.SessionData{}
 	if err := proto.Unmarshal(message, sessionData); err != nil {
+		span.RecordError(err, trace.WithStackTrace(true))
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	return sessionData, nil
