@@ -22,6 +22,7 @@ func NewSessionData() *pb.SessionData {
 	}
 }
 
+// TODO: implement a better session token generator
 func GenerateSessionToken() (string, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)

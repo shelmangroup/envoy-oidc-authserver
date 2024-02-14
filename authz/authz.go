@@ -184,8 +184,8 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	slog.Debug("client request url", slog.String("url", requestedURL))
 
 	// check if cookie exists and fetch session data from cookie
-	sessionData, sessionId := s.getSessionCookieData(ctx, req, sessionCookieName)
-	if sessionData == nil || sessionId == "" {
+	sessionToken, sessionData := s.getSessionCookieData(ctx, req, sessionCookieName)
+	if sessionToken == "" || sessionData == nil {
 		slog.Debug("session data not found in cookie, creating new")
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
 		if err != nil {
@@ -207,7 +207,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 
 	// If the request is for the callback URI, then we need to exchange the code for tokens
 	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") && sessionData.AccessToken == "" {
-		err := s.retriveTokens(ctx, provider, sessionData, requestedURL, sessionCookieName, sessionId)
+		err := s.retriveTokens(ctx, provider, sessionData, requestedURL, sessionCookieName, sessionToken)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
 			span.SetStatus(codes.Error, err.Error())
@@ -219,7 +219,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to requested url"), nil
 	}
 
-	sessionData, err := s.validateTokens(ctx, provider, sessionData, sessionCookieName, sessionId)
+	sessionData, err := s.validateTokens(ctx, provider, sessionData, sessionCookieName, sessionToken)
 	if err != nil {
 		slog.Warn("couldn't validating tokens", slog.String("err", err.Error()))
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
@@ -237,7 +237,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	return s.authResponse(true, envoy_type.StatusCode_OK, headers, nil, "success"), nil
 }
 
-func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, requestedURL, sessionCookieName, sessionId string) error {
+func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, requestedURL, sessionCookieName, sessionToken string) error {
 	code, err := s.getCodeQueryParam(requestedURL)
 	if err != nil {
 		return err
@@ -258,7 +258,7 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 		slog.Error("error encrypting session data", slog.String("err", err.Error()))
 		return err
 	}
-	if err := s.store.Set(ctx, sessionId, enc); err != nil {
+	if err := s.store.Set(ctx, sessionToken, enc); err != nil {
 		return err
 	}
 
@@ -266,7 +266,7 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 }
 
 // Validates and poteintially refreshes the token
-func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, sessionCookieName, sessionId string) (*pb.SessionData, error) {
+func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, sessionCookieName, sessionToken string) (*pb.SessionData, error) {
 	expired, err := provider.p.VerifyTokens(ctx, sessionData.AccessToken, sessionData.IdToken)
 	if err != nil {
 		return nil, err
@@ -294,7 +294,7 @@ func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, se
 		slog.Error("error encrypting session data", slog.String("err", err.Error()))
 		return nil, err
 	}
-	if err := s.store.Set(ctx, sessionId, enc); err != nil {
+	if err := s.store.Set(ctx, sessionToken, enc); err != nil {
 		return nil, err
 	}
 
@@ -336,29 +336,29 @@ func (s *Service) newSession(ctx context.Context, requestedURL, sessionCookieNam
 	return append(headers, s.setCookie(cookie)...), nil
 }
 
-func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeContext_HttpRequest, cookieName string) (*pb.SessionData, string) {
+func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeContext_HttpRequest, cookieName string) (string, *pb.SessionData) {
 	var sessionData *pb.SessionData
-	var sessionId string
+	var sessionToken string
 
 	for _, c := range s.getCookies(req) {
 		if c.Name == cookieName {
 			if c.Valid() != nil {
-				return nil, ""
+				return "", nil
 			}
 			slog.Debug("found a cookie 👌", slog.String("cookie_name", c.Name))
-			sessionId = c.Value
+			sessionToken = c.Value
 		}
 	}
 
-	if sessionId == "" {
-		slog.Debug("no sessionId found in cookie")
-		return nil, ""
+	if sessionToken == "" {
+		slog.Debug("no sessionToken found in cookie")
+		return "", nil
 	}
 
-	enc, err := s.store.Get(ctx, sessionId)
+	enc, err := s.store.Get(ctx, sessionToken)
 	if err != nil {
 		slog.Warn("error getting session data from cache", slog.String("err", err.Error()))
-		return nil, ""
+		return "", nil
 	}
 
 	switch v := enc.(type) {
@@ -371,10 +371,10 @@ func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeC
 	sessionData, err = session.DecryptSession(ctx, [32]byte(s.secretKey), enc.([]byte))
 	if err != nil {
 		slog.Error("error decrypt session data", slog.String("err", err.Error()))
-		return nil, ""
+		return "", nil
 	}
 
-	return sessionData, sessionId
+	return sessionToken, sessionData
 }
 
 // parse cookie header string into []*http.Cookie struct
