@@ -197,12 +197,11 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to Idp"), nil
 	}
 
-	slog.Debug("session data found in cookie", slog.String("session_id", sessionId), slog.String("url", requestedURL))
+	slog.Debug("session data found in cookie", slog.String("url", requestedURL))
 	if span.IsRecording() {
 		span.SetAttributes(
 			semconv.URLFull(requestedURL),
 			semconv.SourceAddress(req.GetHeaders()["x-forwarded-for"]),
-			semconv.SessionID(sessionId),
 		)
 	}
 
@@ -232,7 +231,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to Idp"), nil
 	}
 
-	slog.Debug("setting authorization header to upstream request", slog.String("session_id", sessionId))
+	slog.Debug("setting authorization header to upstream request")
 	span.SetStatus(codes.Ok, "success")
 	headers = append(headers, s.setAuthorizationHeader(sessionData.IdToken))
 	return s.authResponse(true, envoy_type.StatusCode_OK, headers, nil, "success"), nil
