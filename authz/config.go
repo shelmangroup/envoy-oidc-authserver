@@ -12,7 +12,8 @@ import (
 )
 
 type Config struct {
-	Providers []OIDCProvider `yaml:"providers"`
+	SessionExpiration string         `yaml:"sessionExpiration"`
+	Providers         []OIDCProvider `yaml:"providers"`
 }
 
 type OIDCProvider struct {

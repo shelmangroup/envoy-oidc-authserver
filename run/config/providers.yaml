@@ -1,3 +1,4 @@
+sessionExpiration: 48h
 providers:
   - issuerURL: http://localhost:5556/dex
     callbackURI: http://localhost:8000/_authz/callback

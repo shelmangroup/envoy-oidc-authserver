@@ -1,3 +1,4 @@
+sessionExpiration: 48h
 providers:
   # - issuerURL: https://idp.example.com/app/o/test/
   #   callbackURI: https://example.com/_auth/callback

@@ -73,10 +73,17 @@ func NewService(cfg *Config, opaURL, secretKey string, redisAddrs []string) *Ser
 		c = authv3connect.NewAuthorizationClient(client, u.String(), connect.WithGRPC())
 	}
 
+	// Parse the session expiration time
+	expiration, err := time.ParseDuration(cfg.SessionExpiration)
+	if err != nil {
+		slog.Error("error parsing session expiration", slog.String("err", err.Error()))
+		panic(err)
+	}
+
 	return &Service{
 		cfg:        cfg,
 		authClient: c,
-		store:      store.NewStore(redisAddrs),
+		store:      store.NewStore(redisAddrs, expiration),
 		secretKey:  []byte(secretKey),
 	}
 }

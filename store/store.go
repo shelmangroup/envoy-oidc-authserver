@@ -16,9 +16,9 @@ type Store struct {
 	*cache.Cache[any]
 }
 
-func NewStore(redisAddrs []string) *Store {
+func NewStore(redisAddrs []string, expiration time.Duration) *Store {
 	if redisAddrs == nil {
-		gocacheClient := gocache.New(24*time.Hour, 10*time.Minute)
+		gocacheClient := gocache.New(expiration, 10*time.Minute)
 		gocacheStore := gocache_store.NewGoCache(gocacheClient)
 
 		return &Store{
@@ -31,7 +31,7 @@ func NewStore(redisAddrs []string) *Store {
 		MasterName:    "mymaster",
 		SentinelAddrs: redisAddrs,
 	})
-	redisStore := redis_store.NewRedis(redisClient, store.WithExpiration(24*time.Hour))
+	redisStore := redis_store.NewRedis(redisClient, store.WithExpiration(expiration))
 	return &Store{
 		cache.New[any](redisStore),
 	}
