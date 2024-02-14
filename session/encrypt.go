@@ -40,6 +40,7 @@ func EncryptSession(ctx context.Context, key [32]byte, sessionData *pb.SessionDa
 
 	box := secretbox.Seal(nonce[:], message, &nonce, &key)
 
+	span.SetStatus(codes.Ok, "success")
 	return box, nil
 }
 
@@ -64,5 +65,6 @@ func DecryptSession(ctx context.Context, key [32]byte, box []byte) (*pb.SessionD
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
+	span.SetStatus(codes.Ok, "success")
 	return sessionData, nil
 }

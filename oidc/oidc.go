@@ -99,6 +99,7 @@ func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken st
 		attribute.String("expire", t.GetExpiration().String()),
 		attribute.Bool("has_expired", expired)),
 	)
+	span.SetStatus(codes.Ok, "success")
 	return expired, nil
 }
 
@@ -138,6 +139,7 @@ func (o *OIDCProvider) RetriveTokens(ctx context.Context, code, codeVerifier str
 		),
 	)
 
+	span.SetStatus(codes.Ok, "success")
 	return tokens, nil
 }
 
@@ -166,5 +168,6 @@ func (o *OIDCProvider) RefreshTokens(ctx context.Context, refreshToken, clientAs
 			attribute.String("subject", tokens.IDTokenClaims.GetSubject()),
 		),
 	)
+	span.SetStatus(codes.Ok, "success")
 	return tokens, nil
 }

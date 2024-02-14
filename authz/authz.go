@@ -169,6 +169,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	// TODO: merge opaResp headers with resp headers (only okResponse headers)
 
 	// Return response to envoy
+	span.SetStatus(codes.Ok, "success")
 	return connect.NewResponse(resp), nil
 }
 
@@ -232,6 +233,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	}
 
 	slog.Debug("setting authorization header to upstream request", slog.String("session_id", sessionId))
+	span.SetStatus(codes.Ok, "success")
 	headers = append(headers, s.setAuthorizationHeader(sessionData.IdToken))
 	return s.authResponse(true, envoy_type.StatusCode_OK, headers, nil, "success"), nil
 }
