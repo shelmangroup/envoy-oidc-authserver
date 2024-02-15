@@ -18,6 +18,7 @@ import (
 	envoy_type "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/type/v3"
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
+	cache_store "github.com/eko/gocache/lib/v4/store"
 	"github.com/gogo/googleapis/google/rpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -43,10 +44,11 @@ var (
 type Service struct {
 	authv3connect.UnimplementedAuthorizationHandler
 
-	cfg        *Config
-	secretKey  []byte
-	store      *store.Store
-	authClient authv3connect.AuthorizationClient
+	cfg               *Config
+	secretKey         []byte
+	store             *store.Store
+	authClient        authv3connect.AuthorizationClient
+	sessionExpiration time.Duration
 }
 
 func NewService(cfg *Config, opaURL, secretKey string, redisAddrs []string) *Service {
@@ -74,17 +76,18 @@ func NewService(cfg *Config, opaURL, secretKey string, redisAddrs []string) *Ser
 	}
 
 	// Parse the session expiration time
-	expiration, err := time.ParseDuration(cfg.SessionExpiration)
+	ttl, err := time.ParseDuration(cfg.SessionExpiration)
 	if err != nil {
 		slog.Error("error parsing session expiration", slog.String("err", err.Error()))
 		panic(err)
 	}
 
 	return &Service{
-		cfg:        cfg,
-		authClient: c,
-		store:      store.NewStore(redisAddrs, expiration),
-		secretKey:  []byte(secretKey),
+		cfg:               cfg,
+		authClient:        c,
+		sessionExpiration: ttl,
+		store:             store.NewStore(redisAddrs, ttl),
+		secretKey:         []byte(secretKey),
 	}
 }
 
@@ -242,7 +245,14 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 	if err != nil {
 		return err
 	}
-	t, err := provider.p.RetriveTokens(ctx, code, sessionData.CodeVerifier)
+
+	storeKey, err := session.VerifySessionToken(ctx, sessionToken, s.secretKey, s.sessionExpiration)
+	if err != nil {
+		return err
+	}
+
+	codeVerifier := storeKey[:43]
+	t, err := provider.p.RetriveTokens(ctx, code, codeVerifier)
 	if err != nil {
 		return err
 	}
@@ -258,7 +268,7 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 		slog.Error("error encrypting session data", slog.String("err", err.Error()))
 		return err
 	}
-	if err := s.store.Set(ctx, sessionToken, enc); err != nil {
+	if err := s.store.Set(ctx, storeKey, enc); err != nil {
 		return err
 	}
 
@@ -294,7 +304,11 @@ func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, se
 		slog.Error("error encrypting session data", slog.String("err", err.Error()))
 		return nil, err
 	}
-	if err := s.store.Set(ctx, sessionToken, enc); err != nil {
+	storeKey, err := session.VerifySessionToken(ctx, sessionToken, s.secretKey, s.sessionExpiration)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.store.Set(ctx, storeKey, enc); err != nil {
 		return nil, err
 	}
 
@@ -306,7 +320,7 @@ func (s *Service) newSession(ctx context.Context, requestedURL, sessionCookieNam
 	var headers []*core.HeaderValueOption
 
 	sessionData := session.NewSessionData()
-	sessionCookieToken, err := session.GenerateSessionToken()
+	sessionToken, err := session.GenerateSessionToken(ctx, s.secretKey)
 	if err != nil {
 		return nil, err
 	}
@@ -317,16 +331,24 @@ func (s *Service) newSession(ctx context.Context, requestedURL, sessionCookieNam
 	if err != nil {
 		return nil, err
 	}
-	if err := s.store.Set(ctx, sessionCookieToken, enc); err != nil {
+
+	storeKey, err := session.VerifySessionToken(ctx, sessionToken, s.secretKey, s.sessionExpiration)
+	if err != nil {
 		return nil, err
 	}
 
-	idpAuthURL := provider.p.IdpAuthURL(sessionData.CodeChallenge)
+	// User has 5 minutes to authenticate
+	if err := s.store.Set(ctx, storeKey, enc, cache_store.WithExpiration(5*time.Minute)); err != nil {
+		return nil, err
+	}
+
+	codeChallenge := storeKey[43:]
+	idpAuthURL := provider.p.IdpAuthURL(codeChallenge)
 	headers = append(headers, s.setRedirectHeader(idpAuthURL))
 	// set cookie with session id and redirect to Idp
 	cookie := &http.Cookie{
 		Name:     sessionCookieName,
-		Value:    sessionCookieToken,
+		Value:    sessionToken,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   provider.SecureCookie,
@@ -355,7 +377,12 @@ func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeC
 		return "", nil
 	}
 
-	enc, err := s.store.Get(ctx, sessionToken)
+	storeKey, err := session.VerifySessionToken(ctx, sessionToken, s.secretKey, s.sessionExpiration)
+	if err != nil {
+		return "", nil
+	}
+
+	enc, err := s.store.Get(ctx, storeKey)
 	if err != nil {
 		slog.Warn("error getting session data from cache", slog.String("err", err.Error()))
 		return "", nil
