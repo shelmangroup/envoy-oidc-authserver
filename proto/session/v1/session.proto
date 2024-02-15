@@ -4,9 +4,7 @@ package session.v1;
 
 message SessionData {
   string requested_url = 1;
-  string code_verifier = 2;
-  string code_challenge = 3;
-  string access_token = 4;
-  string refresh_token = 5;
-  string id_token = 6;
+  string access_token = 2;
+  string refresh_token = 3;
+  string id_token = 4;
 }

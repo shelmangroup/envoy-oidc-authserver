@@ -57,7 +57,7 @@ func initialize(cfg *Config) (*Config, error) {
 	return cfg, nil
 }
 
-func ConfigFromXmlFile(filename string) (*Config, error) {
+func ConfigFromYamlFile(filename string) (*Config, error) {
 	buf, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err

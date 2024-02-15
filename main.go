@@ -60,7 +60,7 @@ func main() {
 	}
 
 	// read config file
-	c, err := authz.ConfigFromXmlFile(*providersConfig)
+	c, err := authz.ConfigFromYamlFile(*providersConfig)
 	if err != nil {
 		slog.Error("Provider configuration error", err)
 		os.Exit(1)

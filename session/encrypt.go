@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	errInvalid = errors.New("invalid encrypted data")
-	tracer     = otel.Tracer("session")
+	errInvalid          = errors.New("invalid encrypted data")
+	errInvalidOrExpired = errors.New("invalid token or expired token")
+	tracer              = otel.Tracer("session")
 )
 
 func EncryptSession(ctx context.Context, key [32]byte, sessionData *pb.SessionData) ([]byte, error) {
