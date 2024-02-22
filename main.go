@@ -21,7 +21,6 @@ func main() {
 	addr := fs.String('s', "listen-addr", ":8080", "address to listen on")
 	otlpAddr := fs.StringLong("otlp-addr", "", "address to send OTLP traces to")
 	redisAddrs := fs.StringSet('r', "redis-addrs", "Sentinel addresses to use for Redis cache")
-	opaURL := fs.StringLong("opa-url", "", "base url to send OPA requests to")
 	secretKey := fs.StringLong("secret-key", "", "secret key used to encrypt JWT tokens")
 	providersConfig := fs.String('c', "providers-config", "", "oidc config file")
 	logJson := fs.BoolLong("log-json", "log in JSON format")
@@ -67,7 +66,7 @@ func main() {
 	}
 
 	// Create new server
-	s := server.NewServer(*addr, authz.NewService(c, *opaURL, *secretKey, *redisAddrs))
+	s := server.NewServer(*addr, authz.NewService(c, *secretKey, *redisAddrs))
 	defer func() {
 		err := s.Shutdown()
 		if err != nil {

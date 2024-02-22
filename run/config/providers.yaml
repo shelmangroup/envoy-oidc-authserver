@@ -6,8 +6,34 @@ providers:
     # clientSecret: test1234 # omit for PKCE auth
     cookieNamePrefix: podinfo
     # secureCookie: true # disable for local development
-    opaEnabled: true
-    # allowAuthHeaderPassThrough: true
+    opaPolicy: |
+      package authz
+
+      import input.attributes.request.http
+
+      import rego.v1
+
+      default allow = false
+
+      allow if {
+        action_allowed
+      }
+
+      # allow callback path
+      action_allowed if {
+          http.method == "GET"
+          glob.match("/_authz/callback*", ["/"], http.path)
+      }
+
+      action_allowed if {
+          http.method == "GET"
+          glob.match("/api/info", ["/"], http.path)
+      }
+
+      action_allowed if {
+          http.method == "GET"
+          glob.match("/", ["/"], http.path)
+      }
     scopes:
       - openid
       - profile

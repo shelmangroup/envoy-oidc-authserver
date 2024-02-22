@@ -12,10 +12,7 @@ configMapGenerator:
   - name: oidc-authserver
     files:
       - oidc-providers.yaml
-  - name: opa-policy
-    files:
-      - policy.rego
 
 images:
   - name: ghcr.io/shelmangroup/envoy-oidc-authserver
-    newTag: 0.0.7
+    newTag: 0.0.14

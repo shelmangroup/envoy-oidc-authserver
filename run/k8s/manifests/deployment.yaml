@@ -30,8 +30,6 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
-            - name: ENVOY_AUTHZ_OPA_URL
-              value: http://localhost:9191
             # - name: ENVOY_AUTHZ_OTLP_ADDR
             #   value: otel-collector.monitoring.svc.cluster.local:14317
             - name: ENVOY_AUTHZ_PROVIDERS_CONFIG
@@ -55,32 +53,8 @@ spec:
           livenessProbe:
             grpc:
               port: 8080
-        - name: opa
-          image: docker.io/openpolicyagent/opa:latest-envoy-static
-          args:
-            - run
-            - --server
-            - --log-level=debug
-            - --set=plugins.envoy_ext_authz_grpc.addr=:9191
-            - --set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow
-            - --set=decision_logs.console=true
-            - --set=status.console=true
-            - --ignore=.*
-            - /policies/policy.rego
-          ports:
-            - name: grpc
-              containerPort: 9191
-              protocol: TCP
-          volumeMounts:
-            - mountPath: /policies
-              name: opa-policy
-              readOnly: true
       volumes:
         - name: config
           configMap:
             defaultMode: 420
             name: oidc-authserver
-        - name: opa-policy
-          configMap:
-            defaultMode: 420
-            name: opa-policy

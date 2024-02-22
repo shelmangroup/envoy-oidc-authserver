@@ -2,12 +2,9 @@ package authz
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"log/slog"
-	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/url"
 	"strings"
 	"time"
@@ -20,17 +17,15 @@ import (
 	"connectrpc.com/otelconnect"
 	cache_store "github.com/eko/gocache/lib/v4/store"
 	"github.com/gogo/googleapis/google/rpc"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/net/http2"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 
 	pb "github.com/shelmangroup/envoy-oidc-authserver/internal/gen/session/v1"
+	"github.com/shelmangroup/envoy-oidc-authserver/policy"
 	"github.com/shelmangroup/envoy-oidc-authserver/session"
 	"github.com/shelmangroup/envoy-oidc-authserver/store"
 )
@@ -47,34 +42,10 @@ type Service struct {
 	cfg               *Config
 	secretKey         []byte
 	store             *store.Store
-	authClient        authv3connect.AuthorizationClient
 	sessionExpiration time.Duration
 }
 
-func NewService(cfg *Config, opaURL, secretKey string, redisAddrs []string) *Service {
-	var c authv3connect.AuthorizationClient
-	if opaURL != "" {
-		u, err := url.Parse(opaURL)
-		if err != nil {
-			slog.Error("OPA URL is invalid", slog.String("err", err.Error()))
-		}
-		slog.Info("OPA is enabled, all requests will be sent to OPA for authorization", slog.String("url", u.String()))
-		client := &http.Client{
-			Timeout: time.Second * 5,
-			Transport: otelhttp.NewTransport(
-				&http2.Transport{
-					AllowHTTP: true,
-					DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
-						return net.Dial(network, addr)
-					},
-				},
-				otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
-					return otelhttptrace.NewClientTrace(ctx)
-				})),
-		}
-		c = authv3connect.NewAuthorizationClient(client, u.String(), connect.WithGRPC())
-	}
-
+func NewService(cfg *Config, secretKey string, redisAddrs []string) *Service {
 	// Parse the session expiration time
 	ttl, err := time.ParseDuration(cfg.SessionExpiration)
 	if err != nil {
@@ -84,7 +55,6 @@ func NewService(cfg *Config, opaURL, secretKey string, redisAddrs []string) *Ser
 
 	return &Service{
 		cfg:               cfg,
-		authClient:        c,
 		sessionExpiration: ttl,
 		store:             store.NewStore(redisAddrs, ttl),
 		secretKey:         []byte(secretKey),
@@ -107,14 +77,8 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	reqHeaders := httpReq.GetHeaders()
 	var resp *auth.CheckResponse
 	var provider *OIDCProvider
-	var hasAuthHeader bool
 
 	slog.Debug("client request headers", slog.Any("headers", reqHeaders))
-
-	if _, ok := reqHeaders["authorization"]; ok {
-		slog.Debug("client request authorization header is present")
-		hasAuthHeader = true
-	}
 
 	for name, value := range reqHeaders {
 		provider = s.cfg.Match(name, value)
@@ -135,29 +99,26 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			attribute.String("client_id", provider.ClientID),
 			attribute.String("callback_uri", provider.CallbackURI),
 			attribute.String("cookie_name_prefix", provider.CookieNamePrefix),
-			attribute.Bool("opa_enabled", provider.OPAEnabled),
-			attribute.Bool("allow_auth_header", provider.AllowAuthHeader),
+			attribute.String("opa_policy", provider.OPAPolicy),
 			attribute.Bool("secure_cookie", provider.SecureCookie),
 			attribute.StringSlice("scopes", provider.Scopes),
 			attribute.String("header_match_name", provider.HeaderMatch.Name),
 		),
 	)
 
-	if provider.OPAEnabled && s.authClient != nil {
-		slog.Debug("OPA is enabled, sending request to OPA for authorization")
-		opaResp, err := s.authClient.Check(ctx, req)
+	// if OPA Policy is defined evaluate the request
+	if provider.OPAPolicy != "" {
+		allowed, err := policy.Eval(ctx, req.Msg, provider.OPAPolicy)
 		if err != nil {
-			span.RecordError(err, trace.WithStackTrace(true))
+			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			return nil, err
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
-		if opaResp.Msg.GetStatus().GetCode() == int32(rpc.PERMISSION_DENIED) {
-			slog.Debug("OPA denied request")
-			return opaResp, nil
-		}
-		if hasAuthHeader && provider.AllowAuthHeader && (opaResp.Msg.GetStatus().GetCode() == int32(rpc.OK)) {
-			slog.Debug("request has auth header and OPA allowed the request")
-			return opaResp, nil
+
+		if !allowed {
+			slog.Debug("OPA Policy denied the request")
+			span.SetStatus(codes.Error, "OPA Policy denied request")
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "OPA Policy denied request")), nil
 		}
 	}
 
@@ -168,8 +129,6 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		span.SetStatus(codes.Error, err.Error())
 		resp = s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())
 	}
-
-	// TODO: merge opaResp headers with resp headers (only okResponse headers)
 
 	// Return response to envoy
 	span.SetStatus(codes.Ok, "success")
