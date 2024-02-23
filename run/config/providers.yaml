@@ -6,12 +6,11 @@ providers:
     # clientSecret: test1234 # omit for PKCE auth
     cookieNamePrefix: podinfo
     # secureCookie: true # disable for local development
-    opaPolicy: |
+    preAuthPolicy: |
       package authz
 
-      import input.attributes.request.http
-
       import rego.v1
+      import input.attributes.request.http
 
       default allow = false
 
@@ -33,6 +32,20 @@ providers:
       action_allowed if {
           http.method == "GET"
           glob.match("/", ["/"], http.path)
+      }
+
+    postAuthPolicy: |
+      package authz
+      import rego.v1
+
+      default allow = false
+
+      allow if {
+        token.payload.email == "kilgore@kilgore.trout"
+      }
+
+      token := { "payload": payload } if {
+        [_, payload, _] := io.jwt.decode(input.parsed_jwt)
       }
     scopes:
       - openid

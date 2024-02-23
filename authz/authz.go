@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -93,13 +94,14 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Unauthorized, nil, nil, "no header matches any auth provider")), nil
 	}
 
-	span.AddEvent("provider",
+	span.AddEvent("provider config",
 		trace.WithAttributes(
 			attribute.String("issuer_url", provider.IssuerURL),
 			attribute.String("client_id", provider.ClientID),
 			attribute.String("callback_uri", provider.CallbackURI),
 			attribute.String("cookie_name_prefix", provider.CookieNamePrefix),
-			attribute.String("opa_policy", provider.OPAPolicy),
+			attribute.String("pre_auth_policy", provider.PreAuthPolicy),
+			attribute.String("post_auth_policy", provider.PostAuthPolicy),
 			attribute.Bool("secure_cookie", provider.SecureCookie),
 			attribute.StringSlice("scopes", provider.Scopes),
 			attribute.String("header_match_name", provider.HeaderMatch.Name),
@@ -107,8 +109,16 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	)
 
 	// if OPA Policy is defined evaluate the request
-	if provider.OPAPolicy != "" {
-		allowed, err := policy.Eval(ctx, req.Msg, provider.OPAPolicy)
+	var reqInput map[string]interface{}
+	if provider.PreAuthPolicy != "" {
+		input, err := policy.RequestOrResponseToInput(req.Msg)
+		if err != nil {
+			span.RecordError(err, trace.WithStackTrace(true))
+			span.SetStatus(codes.Error, err.Error())
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
+		}
+
+		allowed, err := policy.Eval(ctx, input, provider.PreAuthPolicy)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -116,10 +126,10 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		}
 
 		if !allowed {
-			slog.Debug("OPA Policy denied the request")
-			span.SetStatus(codes.Error, "OPA Policy denied request")
-			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "OPA Policy denied request")), nil
+			span.SetStatus(codes.Error, "PreAuth policy denied request")
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PreAuth policy denied request")), nil
 		}
+		reqInput = input
 	}
 
 	resp, err := s.authProcess(ctx, httpReq, provider)
@@ -128,6 +138,28 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		resp = s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())
+	}
+
+	if provider.PostAuthPolicy != "" && resp.GetStatus().GetCode() == int32(rpc.OK) {
+		respInput, err := policy.RequestOrResponseToInput(resp)
+		if err != nil {
+			span.RecordError(err, trace.WithStackTrace(true))
+			span.SetStatus(codes.Error, err.Error())
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
+		}
+
+		// Merge response with request input
+		maps.Copy(respInput, reqInput)
+		allowed, err := policy.Eval(ctx, respInput, provider.PostAuthPolicy)
+		if err != nil {
+			span.RecordError(err, trace.WithStackTrace(true))
+			span.SetStatus(codes.Error, err.Error())
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
+		}
+		if !allowed {
+			span.SetStatus(codes.Error, "PostAuth Policy denied request")
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PostAuth policy denied request")), nil
+		}
 	}
 
 	// Return response to envoy

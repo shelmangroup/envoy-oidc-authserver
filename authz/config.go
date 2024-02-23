@@ -26,7 +26,8 @@ type OIDCProvider struct {
 	Scopes           []string    `yaml:"scopes"`
 	CookieNamePrefix string      `yaml:"cookieNamePrefix"`
 	SecureCookie     bool        `yaml:"secureCookie"`
-	OPAPolicy        string      `yaml:"opaPolicy"`
+	PreAuthPolicy    string      `yaml:"preAuthPolicy"`
+	PostAuthPolicy   string      `yaml:"postAuthPolicy"`
 	HeaderMatch      HeaderMatch `yaml:"headerMatch"`
 }
 
