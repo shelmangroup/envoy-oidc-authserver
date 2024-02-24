@@ -16,19 +16,25 @@ type Config struct {
 	Providers         []OIDCProvider `yaml:"providers"`
 }
 
+type LogoutConfig struct {
+	RedirectURI string `yaml:"redirectURI"`
+	Path        string `yaml:"path"`
+}
+
 type OIDCProvider struct {
 	p oidc.UnimplementedAuthProvider
 
-	IssuerURL        string      `yaml:"issuerURL"`
-	CallbackURI      string      `yaml:"callbackURI"`
-	ClientID         string      `yaml:"clientID"`
-	ClientSecret     string      `yaml:"clientSecret"`
-	Scopes           []string    `yaml:"scopes"`
-	CookieNamePrefix string      `yaml:"cookieNamePrefix"`
-	SecureCookie     bool        `yaml:"secureCookie"`
-	PreAuthPolicy    string      `yaml:"preAuthPolicy"`
-	PostAuthPolicy   string      `yaml:"postAuthPolicy"`
-	HeaderMatch      HeaderMatch `yaml:"headerMatch"`
+	IssuerURL        string       `yaml:"issuerURL"`
+	CallbackURI      string       `yaml:"callbackURI"`
+	Logout           LogoutConfig `yaml:"logout"`
+	ClientID         string       `yaml:"clientID"`
+	ClientSecret     string       `yaml:"clientSecret"`
+	Scopes           []string     `yaml:"scopes"`
+	CookieNamePrefix string       `yaml:"cookieNamePrefix"`
+	SecureCookie     bool         `yaml:"secureCookie"`
+	PreAuthPolicy    string       `yaml:"preAuthPolicy"`
+	PostAuthPolicy   string       `yaml:"postAuthPolicy"`
+	HeaderMatch      HeaderMatch  `yaml:"headerMatch"`
 }
 
 type HeaderMatch struct {

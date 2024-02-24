@@ -124,6 +124,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			span.SetStatus(codes.Error, err.Error())
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
+		slog.Debug("PreAuth policy result", slog.Bool("allowed", allowed))
 
 		if !allowed {
 			span.SetStatus(codes.Error, "PreAuth policy denied request")
@@ -211,6 +212,19 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		slog.Debug("redirecting client to first requested URL", slog.String("url", sessionData.GetRequestedUrl()))
 		headers = append(headers, s.setRedirectHeader(sessionData.GetRequestedUrl()))
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to requested url"), nil
+	}
+
+	if req.GetPath() == provider.Logout.Path {
+		slog.Debug("logout request", slog.String("path", req.GetPath()))
+		storeKey, err := session.VerifySessionToken(ctx, sessionToken, s.secretKey, s.sessionExpiration)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.store.Delete(ctx, storeKey); err != nil {
+			return nil, err
+		}
+		headers = append(headers, s.setRedirectHeader(provider.Logout.RedirectURI))
+		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to logout url"), nil
 	}
 
 	sessionData, err := s.validateTokens(ctx, provider, sessionData, sessionCookieName, sessionToken)

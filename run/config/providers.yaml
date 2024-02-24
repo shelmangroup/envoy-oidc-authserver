@@ -6,6 +6,9 @@ providers:
     # clientSecret: test1234 # omit for PKCE auth
     cookieNamePrefix: podinfo
     # secureCookie: true # disable for local development
+    logout:
+      redirectURI: http://localhost:5556/dex/end-session
+      path: /_authz/logout
     preAuthPolicy: |
       package authz
 
@@ -18,10 +21,10 @@ providers:
         action_allowed
       }
 
-      # allow callback path
+      # allow callback/logout path
       action_allowed if {
           http.method == "GET"
-          glob.match("/_authz/callback*", ["/"], http.path)
+          glob.match("/_authz/*", ["/"], http.path)
       }
 
       action_allowed if {
