@@ -23,18 +23,18 @@ providers:
 
       # allow callback/logout path
       action_allowed if {
-          http.method == "GET"
-          glob.match("/_authz/*", ["/"], http.path)
+        http.method == "GET"
+        glob.match("/_authz/*", ["/"], http.path)
       }
 
       action_allowed if {
-          http.method == "GET"
-          glob.match("/api/info", ["/"], http.path)
+        http.method == "GET"
+        glob.match("/api/info", ["/"], http.path)
       }
 
       action_allowed if {
-          http.method == "GET"
-          glob.match("/", ["/"], http.path)
+        http.method == "GET"
+        glob.match("/", ["/"], http.path)
       }
 
     postAuthPolicy: |

@@ -1,10 +1,11 @@
 package authz
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"html/template"
 	"log/slog"
-	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -108,8 +109,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		),
 	)
 
-	// if OPA Policy is defined evaluate the request
-	var reqInput map[string]interface{}
+	// if PreAuthPolicy is defined evaluate the request
 	if provider.PreAuthPolicy != "" {
 		input, err := policy.RequestOrResponseToInput(req.Msg)
 		if err != nil {
@@ -127,12 +127,12 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		slog.Debug("PreAuth policy result", slog.Bool("allowed", allowed))
 
 		if !allowed {
-			span.SetStatus(codes.Error, "PreAuth policy denied request")
-			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PreAuth policy denied request")), nil
+			span.SetStatus(codes.Error, "PreAuth policy denied the request")
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PreAuth policy denied the request")), nil
 		}
-		reqInput = input
 	}
 
+	// Call the auth flow
 	resp, err := s.authProcess(ctx, httpReq, provider)
 	if err != nil {
 		slog.Error("authProccess failed", slog.String("err", err.Error()))
@@ -141,6 +141,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		resp = s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())
 	}
 
+	// if PostAuthPolicy is defined evaluate the response
 	if provider.PostAuthPolicy != "" && resp.GetStatus().GetCode() == int32(rpc.OK) {
 		respInput, err := policy.RequestOrResponseToInput(resp)
 		if err != nil {
@@ -149,8 +150,6 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 
-		// Merge response with request input
-		maps.Copy(respInput, reqInput)
 		allowed, err := policy.Eval(ctx, respInput, provider.PostAuthPolicy)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
@@ -158,8 +157,8 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 		if !allowed {
-			span.SetStatus(codes.Error, "PostAuth Policy denied request")
-			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PostAuth policy denied request")), nil
+			span.SetStatus(codes.Error, "PostAuth policy denied the request")
+			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PostAuth policy denied the request")), nil
 		}
 	}
 
@@ -496,9 +495,83 @@ func (s *Service) authResponse(success bool, httpStatusCode envoy_type.StatusCod
 				Status: &envoy_type.HttpStatus{
 					Code: httpStatusCode,
 				},
-				Headers: headers,
-				Body:    body,
+				Headers: append(headers,
+					&core.HeaderValueOption{
+						Header: &core.HeaderValue{
+							Key:   "Content-Type",
+							Value: "text/html; charset=utf-8",
+						},
+					}),
+				Body: s.genErrorHtmlPage(body),
 			},
 		},
 	}
+}
+
+func (s *Service) genErrorHtmlPage(msg string) string {
+	tplData := struct {
+		Message string
+	}{
+		Message: msg,
+	}
+
+	// Define our template
+	t := template.Must(template.New("error").Parse(`
+    <!DOCTYPE html>
+    <html>
+     <head>
+      <title>Error</title>
+      <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+      <style>
+        body {
+          background-color: #333;
+          color: white;
+          text-align: center;
+          font-family: 'Fira Code', monospace;
+        }
+
+        .main {
+          display: block;
+          position: relative;
+          margin: 50px auto 0 auto;
+          width: 600px;
+        }
+
+        .main h1 {
+          font-size: 80px;
+          line-height: 36px;
+          color: #fff;
+        }
+
+        .box {
+          width: 400px;
+          display: flex;
+          border: 2px solid #000;
+          margin: 0 auto 15px;
+          text-align: center;
+          padding: 30px;
+          font-weight: bold;
+          border-radius: 10px;
+        }
+
+        .error {
+          background-color: #EBB1B1;
+          border-color: #973939;
+          color: #973939;
+        }
+      </style>
+     </head>
+     <body>
+      <div class="main">
+      <h1>$#*!🤦</h1>
+        <div class="error box"> {{ .Message }} </div>
+      </div>
+     </body>
+    </html>
+  `))
+
+	// Render our template
+	var body = new(bytes.Buffer)
+	_ = t.Execute(body, tplData)
+	return body.String()
 }

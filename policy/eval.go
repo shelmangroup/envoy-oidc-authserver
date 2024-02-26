@@ -27,7 +27,7 @@ func Eval(ctx context.Context, input map[string]interface{}, policy string) (boo
 
 	q, err := rego.New(
 		rego.Query("data.authz.allow"),
-		rego.Module("opaPolicy", policy),
+		rego.Module("OpenPolicyAgent", policy),
 	).PrepareForEval(ctx)
 
 	if err != nil {
