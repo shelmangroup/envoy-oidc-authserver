@@ -28,7 +28,7 @@ const (
 )
 
 // SetupTracing sets up the OpenTelemetry tracing system.
-func SetupTracing(otlpAddr string) func() {
+func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 	ctx := context.Background()
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -53,11 +53,13 @@ func SetupTracing(otlpAddr string) func() {
 		return nil
 	}
 
-	// var sampler sdktrace.Sampler
 	// Use RatioBasedSampler to sample a fixed rate of traces.
-	//  sampler = sdktrace.TraceIDRatioBased(0.5)
-	// Default always sample
-	sampler := sdktrace.AlwaysSample()
+	var sampler sdktrace.Sampler
+	if sampleRatio == 1.0 {
+		sampler = sdktrace.AlwaysSample()
+	} else {
+		sampler = sdktrace.TraceIDRatioBased(sampleRatio)
+	}
 
 	// zpages is a handler that can be used to view traces in the browser.
 	zsp = zpages.NewSpanProcessor()

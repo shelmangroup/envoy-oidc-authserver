@@ -15,4 +15,4 @@ configMapGenerator:
 
 images:
   - name: ghcr.io/shelmangroup/envoy-oidc-authserver
-    newTag: 0.0.14
+    newTag: 0.1.0

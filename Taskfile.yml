@@ -41,7 +41,7 @@ tasks:
     deps: [buf:generate]
     env:
       ENVOY_AUTHZ_SECRET_KEY: "G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t"
-      ENVOY_AUTHZ_OPA_URL: http://localhost:9191
+      ENVOY_AUTHZ_OTLP_ADDR: :4317
       ENVOY_AUTHZ_REDIS_ADDRS: localhost:26379
       ENVOY_AUTHZ_PROVIDERS_CONFIG: run/config/providers.yaml
       ENVOY_AUTHZ_LOG_LEVEL: debug

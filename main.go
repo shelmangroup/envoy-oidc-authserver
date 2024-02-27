@@ -20,6 +20,7 @@ func main() {
 	fs := ff.NewFlagSet("envoy-oidc-authserver")
 	addr := fs.String('s', "listen-addr", ":8080", "address to listen on")
 	otlpAddr := fs.StringLong("otlp-addr", "", "address to send OTLP traces to")
+	otlpSampleRatio := fs.Float64Long("otlp-sample-ratio", 1.0, "OTLP sample ratio, default is always sample")
 	redisAddrs := fs.StringSet('r', "redis-addrs", "Sentinel addresses to use for Redis cache")
 	secretKey := fs.StringLong("secret-key", "", "secret key used to encrypt JWT tokens")
 	providersConfig := fs.String('c', "providers-config", "", "oidc config file")
@@ -54,7 +55,7 @@ func main() {
 
 	// Setup tracing
 	if *otlpAddr != "" {
-		shutdown := telemetry.SetupTracing(*otlpAddr)
+		shutdown := telemetry.SetupTracing(*otlpAddr, *otlpSampleRatio)
 		defer shutdown()
 	}
 
