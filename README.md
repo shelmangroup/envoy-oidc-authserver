@@ -1,18 +1,23 @@
 # Envoy OIDC Authserver
 
 An implementation of Envoy External Authorization, focused on delivering authN/Z solutions for Envoy L7 proxy.
-Compatible with Kubernetes Ingress classes like Projectcontour or Istio.
+Compatible with Kubernetes Ingress classes like [Project Contour](https://projectcontour.io/) or [Istio](https://istio.io).
 
 Some of the features it provides:
 
 - Transparent login
 
-  - Retrieves OAuth2 Access tokens, ID tokens, and refresh tokens
+  - Retrieves OAuth2 Access tokens, ID tokens and refresh tokens
   - Compatible with any standard OIDC Provider
+  - Supports PKCE flow (public)
+  - Logout redirects
 
 - Session management
 
+  - Session tokens and data are crytographically verifiable.
   - Refreshes expired tokens automatically
 
-- Open Policy Agent chaining request.
+- Pre and post authorization policies with Open Policy Agent (OPA) policies.
+
   - Allowing fine grained policy rules per request.
+  - Post auth token policies (decode JWT and verify claims).
