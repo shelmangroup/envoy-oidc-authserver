@@ -110,7 +110,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	)
 
 	// if PreAuthPolicy is defined evaluate the request
-	if provider.PreAuthPolicy != "" {
+	if provider.preAuthPolicy != nil {
 		input, err := policy.RequestOrResponseToInput(req.Msg)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
@@ -118,7 +118,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 
-		allowed, err := policy.Eval(ctx, input, provider.PreAuthPolicy)
+		allowed, err := provider.preAuthPolicy.Eval(ctx, input)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -142,7 +142,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	}
 
 	// if PostAuthPolicy is defined evaluate the response
-	if provider.PostAuthPolicy != "" && resp.GetStatus().GetCode() == int32(rpc.OK) {
+	if provider.postAuthPolicy != nil && resp.GetStatus().GetCode() == int32(rpc.OK) {
 		respInput, err := policy.RequestOrResponseToInput(resp)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
@@ -150,7 +150,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 
-		allowed, err := policy.Eval(ctx, respInput, provider.PostAuthPolicy)
+		allowed, err := provider.postAuthPolicy.Eval(ctx, respInput)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
 			span.SetStatus(codes.Error, err.Error())

@@ -2,11 +2,11 @@ package policy
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 
 	auth "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/service/auth/v3"
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
 	"go.opentelemetry.io/otel"
@@ -20,37 +20,44 @@ var (
 	tracer = otel.Tracer("policy")
 )
 
+type Policy struct {
+	name string
+	rego *rego.Rego
+}
+
+// NewPolicy creates a new Policy with the given policy.
+func NewPolicy(name, policy string) *Policy {
+	return &Policy{
+		rego: rego.New(rego.Query("data.authz.allow"), rego.Module("OpenPolicyAgent", policy)),
+		name: name,
+	}
+}
+
 // Eval evaluates the policy with the given input and returns the result.
-func Eval(ctx context.Context, input map[string]interface{}, policy string) (bool, error) {
-	ctx, span := tracer.Start(ctx, "PolicyEval")
+func (p *Policy) Eval(ctx context.Context, input ast.Value) (bool, error) {
+	ctx, span := tracer.Start(ctx, p.name+"PolicyEval")
 	defer span.End()
 
-	q, err := rego.New(
-		rego.Query("data.authz.allow"),
-		rego.Module("OpenPolicyAgent", policy),
-	).PrepareForEval(ctx)
-
+	q, err := p.rego.PrepareForEval(ctx)
 	if err != nil {
 		span.RecordError(err, trace.WithStackTrace(true))
 		span.SetStatus(codes.Error, err.Error())
 		return false, err
 	}
 
-	rs, err := q.Eval(ctx, rego.EvalInput(input))
+	rs, err := q.Eval(ctx, rego.EvalParsedInput(input))
 	if err != nil {
 		span.RecordError(err, trace.WithStackTrace(true))
 		span.SetStatus(codes.Error, err.Error())
 		return false, err
 	}
 
-	span.AddEvent("decision log",
+	span.AddEvent("decision_log",
 		trace.WithAttributes(
-			attribute.String("policy", policy),
-			attribute.String("input", fmt.Sprintf("%+v", input)),
 			attribute.Bool("is_allowed", rs.Allowed()),
 		),
 	)
-	slog.Debug("policy", slog.Any("input", input))
+	slog.Debug("policy", slog.String("input", input.String()))
 
 	if !rs.Allowed() {
 		span.SetStatus(codes.Error, "policy denied")
@@ -61,7 +68,7 @@ func Eval(ctx context.Context, input map[string]interface{}, policy string) (boo
 	return true, nil
 }
 
-func RequestOrResponseToInput(req any) (map[string]interface{}, error) {
+func RequestOrResponseToInput(req any) (ast.Value, error) {
 	var input map[string]interface{}
 
 	// type switch for CheckRequest or CheckResponse
@@ -92,5 +99,10 @@ func RequestOrResponseToInput(req any) (map[string]interface{}, error) {
 		}
 	}
 
-	return input, nil
+	v, err := ast.InterfaceToValue(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return v, nil
 }

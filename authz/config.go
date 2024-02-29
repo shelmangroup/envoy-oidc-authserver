@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/shelmangroup/envoy-oidc-authserver/oidc"
+	"github.com/shelmangroup/envoy-oidc-authserver/policy"
 )
 
 type Config struct {
@@ -22,7 +23,9 @@ type LogoutConfig struct {
 }
 
 type OIDCProvider struct {
-	p oidc.UnimplementedAuthProvider
+	p              oidc.UnimplementedAuthProvider
+	preAuthPolicy  *policy.Policy
+	postAuthPolicy *policy.Policy
 
 	IssuerURL        string       `yaml:"issuerURL"`
 	CallbackURI      string       `yaml:"callbackURI"`
@@ -59,6 +62,15 @@ func initialize(cfg *Config) (*Config, error) {
 			return nil, err
 		}
 		cfg.Providers[i].p = provider
+
+		if c.PreAuthPolicy != "" {
+			cfg.Providers[i].preAuthPolicy = policy.NewPolicy("PreAuth", c.PreAuthPolicy)
+			slog.Info("loaded pre-auth policy", slog.String("issuer", c.IssuerURL))
+		}
+		if c.PostAuthPolicy != "" {
+			cfg.Providers[i].postAuthPolicy = policy.NewPolicy("PostAuth", c.PostAuthPolicy)
+			slog.Info("loaded post-auth policy", slog.String("issuer", c.IssuerURL))
+		}
 	}
 	return cfg, nil
 }
