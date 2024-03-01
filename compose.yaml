@@ -27,13 +27,11 @@ services:
       - serve
       - /dex.yaml
 
-  otel:
-    image: docker.io/otel/opentelemetry-collector-contrib
-    volumes:
-      - ./run/config/otel.yaml:/etc/otel/config.yaml
+  jaeger:
+    image: docker.io/jaegertracing/all-in-one:1.54
     ports:
-      - "${PORT_OTEL:-4317}:4317"
-    network_mode: host
+      - "4317:4317"
+      - "8200:16686"
 
   redis-master:
     image: redis
