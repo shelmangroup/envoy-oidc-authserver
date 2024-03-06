@@ -34,16 +34,14 @@ import (
 
 const ServiceName = "envoy-authz"
 
-var (
-	tracer = otel.Tracer("authz")
-)
+var tracer = otel.Tracer("authz")
 
 type Service struct {
 	authv3connect.UnimplementedAuthorizationHandler
 
 	cfg               *Config
-	secretKey         []byte
 	store             *store.Store
+	secretKey         []byte
 	sessionExpiration time.Duration
 }
 
@@ -64,7 +62,8 @@ func NewService(cfg *Config, secretKey string, redisAddrs []string) *Service {
 }
 
 func (s *Service) NewHandler() (string, http.Handler) {
-	return authv3connect.NewAuthorizationHandler(s, connect.WithInterceptors(otelconnect.NewInterceptor()))
+	otel, _ := otelconnect.NewInterceptor()
+	return authv3connect.NewAuthorizationHandler(s, connect.WithInterceptors(otel))
 }
 
 func (s *Service) Name() string {
@@ -111,14 +110,14 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 
 	// if PreAuthPolicy is defined evaluate the request
 	if provider.preAuthPolicy != nil {
-		input, err := policy.RequestOrResponseToInput(req.Msg)
+		resInput, err := policy.RequestOrResponseToInput(req.Msg)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
 			span.SetStatus(codes.Error, err.Error())
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 
-		allowed, err := provider.preAuthPolicy.Eval(ctx, input)
+		allowed, err := provider.preAuthPolicy.Eval(ctx, resInput)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -135,7 +134,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	// Call the auth flow
 	resp, err := s.authProcess(ctx, httpReq, provider)
 	if err != nil {
-		slog.Error("authProccess failed", slog.String("err", err.Error()))
+		slog.Error("authProcess failed", slog.String("err", err.Error()))
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		resp = s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())
@@ -172,7 +171,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	defer span.End()
 
 	var headers []*core.HeaderValueOption
-	var sessionCookieName = provider.CookieNamePrefix + "-" + ServiceName
+	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
 
 	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
 	slog.Debug("client request url", slog.String("url", requestedURL))
@@ -201,7 +200,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 
 	// If the request is for the callback URI, then we need to exchange the code for tokens
 	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") && sessionData.AccessToken == "" {
-		err := s.retriveTokens(ctx, provider, sessionData, requestedURL, sessionCookieName, sessionToken)
+		err := s.retrieveTokens(ctx, provider, sessionData, requestedURL, sessionToken)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
 			span.SetStatus(codes.Error, err.Error())
@@ -213,6 +212,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to requested url"), nil
 	}
 
+	// If the request is for the logout URI, then we need to delete the session
 	if req.GetPath() == provider.Logout.Path {
 		slog.Debug("logout request", slog.String("path", req.GetPath()))
 		storeKey, err := session.VerifySessionToken(ctx, sessionToken, s.secretKey, s.sessionExpiration)
@@ -226,7 +226,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to logout url"), nil
 	}
 
-	sessionData, err := s.validateTokens(ctx, provider, sessionData, sessionCookieName, sessionToken)
+	sessionData, err := s.validateTokens(ctx, provider, sessionData, sessionToken)
 	if err != nil {
 		slog.Warn("couldn't validating tokens", slog.String("err", err.Error()))
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
@@ -244,7 +244,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	return s.authResponse(true, envoy_type.StatusCode_OK, headers, nil, "success"), nil
 }
 
-func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, requestedURL, sessionCookieName, sessionToken string) error {
+func (s *Service) retrieveTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, requestedURL, sessionToken string) error {
 	code, err := s.getCodeQueryParam(requestedURL)
 	if err != nil {
 		return err
@@ -256,7 +256,7 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 	}
 
 	codeVerifier := storeKey[:43]
-	t, err := provider.p.RetriveTokens(ctx, code, codeVerifier)
+	t, err := provider.p.RetrieveTokens(ctx, code, codeVerifier)
 	if err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (s *Service) retriveTokens(ctx context.Context, provider *OIDCProvider, ses
 }
 
 // Validates and poteintially refreshes the token
-func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, sessionCookieName, sessionToken string) (*pb.SessionData, error) {
+func (s *Service) validateTokens(ctx context.Context, provider *OIDCProvider, sessionData *pb.SessionData, sessionToken string) (*pb.SessionData, error) {
 	expired, err := provider.p.VerifyTokens(ctx, sessionData.AccessToken, sessionData.IdToken)
 	if err != nil {
 		return nil, err
@@ -571,7 +571,7 @@ func (s *Service) genErrorHtmlPage(msg string) string {
   `))
 
 	// Render our template
-	var body = new(bytes.Buffer)
+	body := new(bytes.Buffer)
 	_ = t.Execute(body, tplData)
 	return body.String()
 }

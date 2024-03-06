@@ -27,17 +27,17 @@ type OIDCProvider struct {
 	preAuthPolicy  *policy.Policy
 	postAuthPolicy *policy.Policy
 
-	IssuerURL        string       `yaml:"issuerURL"`
-	CallbackURI      string       `yaml:"callbackURI"`
+	HeaderMatch      HeaderMatch  `yaml:"headerMatch"`
 	Logout           LogoutConfig `yaml:"logout"`
 	ClientID         string       `yaml:"clientID"`
+	CallbackURI      string       `yaml:"callbackURI"`
 	ClientSecret     string       `yaml:"clientSecret"`
-	Scopes           []string     `yaml:"scopes"`
 	CookieNamePrefix string       `yaml:"cookieNamePrefix"`
-	SecureCookie     bool         `yaml:"secureCookie"`
 	PreAuthPolicy    string       `yaml:"preAuthPolicy"`
 	PostAuthPolicy   string       `yaml:"postAuthPolicy"`
-	HeaderMatch      HeaderMatch  `yaml:"headerMatch"`
+	IssuerURL        string       `yaml:"issuerURL"`
+	Scopes           []string     `yaml:"scopes"`
+	SecureCookie     bool         `yaml:"secureCookie"`
 }
 
 type HeaderMatch struct {

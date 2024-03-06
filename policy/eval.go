@@ -16,13 +16,11 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-var (
-	tracer = otel.Tracer("policy")
-)
+var tracer = otel.Tracer("policy")
 
 type Policy struct {
-	name string
 	rego *rego.Rego
+	name string
 }
 
 // NewPolicy creates a new Policy with the given policy.
@@ -34,9 +32,14 @@ func NewPolicy(name, policy string) *Policy {
 }
 
 // Eval evaluates the policy with the given input and returns the result.
-func (p *Policy) Eval(ctx context.Context, input ast.Value) (bool, error) {
+func (p *Policy) Eval(ctx context.Context, input map[string]any) (bool, error) {
 	ctx, span := tracer.Start(ctx, p.name+"PolicyEval")
 	defer span.End()
+
+	v, err := ast.InterfaceToValue(input)
+	if err != nil {
+		return false, err
+	}
 
 	q, err := p.rego.PrepareForEval(ctx)
 	if err != nil {
@@ -45,7 +48,7 @@ func (p *Policy) Eval(ctx context.Context, input ast.Value) (bool, error) {
 		return false, err
 	}
 
-	rs, err := q.Eval(ctx, rego.EvalParsedInput(input))
+	rs, err := q.Eval(ctx, rego.EvalParsedInput(v))
 	if err != nil {
 		span.RecordError(err, trace.WithStackTrace(true))
 		span.SetStatus(codes.Error, err.Error())
@@ -57,7 +60,7 @@ func (p *Policy) Eval(ctx context.Context, input ast.Value) (bool, error) {
 			attribute.Bool("is_allowed", rs.Allowed()),
 		),
 	)
-	slog.Debug("policy", slog.String("input", input.String()))
+	slog.Debug("policy", slog.Any("input", input))
 
 	if !rs.Allowed() {
 		span.SetStatus(codes.Error, "policy denied")
@@ -68,7 +71,7 @@ func (p *Policy) Eval(ctx context.Context, input ast.Value) (bool, error) {
 	return true, nil
 }
 
-func RequestOrResponseToInput(req any) (ast.Value, error) {
+func RequestOrResponseToInput(req any) (map[string]any, error) {
 	var input map[string]interface{}
 
 	// type switch for CheckRequest or CheckResponse
@@ -99,10 +102,5 @@ func RequestOrResponseToInput(req any) (ast.Value, error) {
 		}
 	}
 
-	v, err := ast.InterfaceToValue(input)
-	if err != nil {
-		return nil, err
-	}
-
-	return v, nil
+	return input, nil
 }

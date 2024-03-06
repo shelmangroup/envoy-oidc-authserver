@@ -22,7 +22,7 @@ import (
 // Create auth provicer interface
 type UnimplementedAuthProvider interface {
 	IdpAuthURL(codeChallenge string) string
-	RetriveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
+	RetrieveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
 	RefreshTokens(ctx context.Context, refreshToken, clientAssertion string) (*oidc.Tokens[*oidc.IDTokenClaims], error)
 	VerifyTokens(ctx context.Context, accessToken, idToken string) (bool, error)
 }
@@ -34,9 +34,7 @@ type OIDCProvider struct {
 	isPKCE   bool
 }
 
-var (
-	tracer = otel.Tracer("oidc")
-)
+var tracer = otel.Tracer("oidc")
 
 // NewOIDCProvider creates a new oidc provider
 func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes []string) (*OIDCProvider, error) {
@@ -101,10 +99,10 @@ func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken st
 	return expired, nil
 }
 
-// RetriveTokens retrieves the tokens from the idp callback redirect and returns them
+// RetrieveTokens retrieves the tokens from the idp callback redirect and returns them
 // `code` is the `code` query parameter from the idp callback redirect
-func (o *OIDCProvider) RetriveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
-	ctx, span := tracer.Start(ctx, "RetriveTokens")
+func (o *OIDCProvider) RetrieveTokens(ctx context.Context, code, codeVerifier string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
+	ctx, span := tracer.Start(ctx, "RetrieveTokens")
 	defer span.End()
 
 	var opts []rp.CodeExchangeOpt
@@ -118,14 +116,14 @@ func (o *OIDCProvider) RetriveTokens(ctx context.Context, code, codeVerifier str
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		slog.Error("retriving token", slog.String("err", err.Error()))
+		slog.Error("retrieving token", slog.String("err", err.Error()))
 		return nil, err
 	}
 
 	if !tokens.Valid() {
-		span.RecordError(errors.New("RetriveTokens: invalid token"))
-		span.SetStatus(codes.Error, "RetriveTokens: invalid token")
-		return nil, errors.New("RetriveTokens: invalid token")
+		span.RecordError(errors.New("RetrieveTokens: invalid token"))
+		span.SetStatus(codes.Error, "RetrieveTokens: invalid token")
+		return nil, errors.New("RetrieveTokens: invalid token")
 	}
 
 	span.AddEvent("log",
