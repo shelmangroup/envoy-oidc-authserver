@@ -1,33 +1,38 @@
 {
-  description = "Shelman Authz";
+  description = "Envoy OIDC Authserver";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { nixpkgs, flake-utils, ... }: flake-utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, utils }: 
+    utils.lib.eachDefaultSystem (system:
     let
-      pkgs = nixpkgs.legacyPackages.${system};
+      pkgs = import nixpkgs {
+        inherit system;
+      };
+      devPkgs = with pkgs; [
+        buf
+        delve
+        git
+        go_1_22
+        go-task
+        golangci-lint
+        golines
+        goreleaser
+        gotestsum
+        ko
+        protobuf
+        protoc-gen-go
+        watchexec
+      ];
     in 
     {
-      devShell = pkgs.mkShell {
-        buildInputs = (with pkgs; [
-          buf
-          delve
-          git
-          go_1_21
-          go-task
-          golangci-lint
-          golines
-          goreleaser
-          gotestsum
-          jless
-          ko
-          protobuf
-          protoc-gen-go
-          watchexec
-        ]);
+      devShells = {
+        default = pkgs.mkShell {
+          packages = devPkgs;
+        };
       };
     }
   );
