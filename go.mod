@@ -1,6 +1,6 @@
 module github.com/shelmangroup/envoy-oidc-authserver
 
-go 1.22.0
+go 1.22.1
 
 require (
 	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.15.0-20240305201957-48842db29f4b.1
