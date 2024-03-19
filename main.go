@@ -16,7 +16,6 @@ import (
 )
 
 func main() {
-
 	fs := ff.NewFlagSet("envoy-oidc-authserver")
 	addr := fs.String('s', "listen-addr", ":8080", "address to listen on")
 	otlpAddr := fs.StringLong("otlp-addr", "", "address to send OTLP traces to")
@@ -78,7 +77,7 @@ func main() {
 	// Start the server
 	go func() {
 		if err := s.Serve(); err != nil {
-			slog.Error("HTTP Server error", err)
+			slog.Error("HTTP Server error", slog.String("err", err.Error()))
 			os.Exit(1)
 		}
 	}()

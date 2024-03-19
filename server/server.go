@@ -10,8 +10,6 @@ import (
 	"connectrpc.com/grpcreflect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-
-	"github.com/shelmangroup/envoy-oidc-authserver/telemetry"
 )
 
 type Service interface {
@@ -44,9 +42,7 @@ func NewServer(httpAddr string, services ...Service) *Server {
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
-	// Setup zpages tracing, nice for local development
-	mux.HandleFunc(telemetry.ZPagesPath, telemetry.ZPagesHandlerFunc())
-
+	// Create a new HTTP server
 	httpServer := &http.Server{
 		Addr:              httpAddr,
 		Handler:           h2c.NewHandler(mux, &http2.Server{}),
@@ -59,7 +55,7 @@ func NewServer(httpAddr string, services ...Service) *Server {
 }
 
 func (s *Server) Serve() error {
-	slog.Info("Start HTTP server")
+	slog.Info("Start HTTP server", slog.String("addr", s.httpServer.Addr))
 	return s.httpServer.ListenAndServe()
 }
 
