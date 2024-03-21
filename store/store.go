@@ -26,7 +26,7 @@ func NewStore(redisAddrs []string, expiration time.Duration) *Store {
 		}
 	}
 
-	slog.Info("Using Redis Sentinel cache", slog.Any("sentinel addrs", redisAddrs))
+	slog.Info("Using Redis Sentinel cache", slog.Any("addrs", redisAddrs))
 	redisClient := redis.NewFailoverClient(&redis.FailoverOptions{
 		MasterName:    "mymaster",
 		SentinelAddrs: redisAddrs,

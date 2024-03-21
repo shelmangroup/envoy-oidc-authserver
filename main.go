@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/peterbourgon/ff/v4"
+	"github.com/peterbourgon/ff/v4/ffhelp"
 	"github.com/peterbourgon/ff/v4/ffyaml"
 
 	"github.com/shelmangroup/envoy-oidc-authserver/authz"
@@ -20,24 +22,24 @@ func main() {
 	addr := fs.String('s', "listen-addr", ":8080", "address to listen on")
 	otlpAddr := fs.StringLong("otlp-addr", "", "address to send OTLP traces to")
 	otlpSampleRatio := fs.Float64Long("otlp-sample-ratio", 1.0, "OTLP sample ratio, default is always sample")
-	redisAddrs := fs.StringSet('r', "redis-addrs", "Sentinel addresses to use for Redis cache")
-	secretKey := fs.StringLong("secret-key", "", "secret key used to encrypt JWT tokens")
-	providersConfig := fs.String('c', "providers-config", "", "oidc config file")
+	redisAddrs := fs.StringSet('r', "redis-addrs", "sentinel addresses to use for Redis cache, omit for in memory cache")
+	secretKey := fs.StringLong("secret-key", "", "secret key used to encrypt session tokens")
+	providersConfig := fs.String('c', "providers-config", "", "OIDC procider configuration file")
 	logJson := fs.BoolLong("log-json", "log in JSON format")
 	logLevel := fs.StringLong("log-level", "info", "log level (debug, info, warn, error)")
 
-	err := ff.Parse(fs, os.Args[1:],
+	if err := ff.Parse(fs, os.Args[1:],
 		ff.WithEnvVarPrefix("ENVOY_AUTHZ"),
 		ff.WithEnvVarSplit(","),
 		ff.WithConfigFileFlag("config"),
 		ff.WithConfigFileParser(ffyaml.Parse),
-	)
-	if err != nil {
-		slog.Error("Configuration error", err)
+	); err != nil {
+		fmt.Printf("%s", ffhelp.Flags(fs))
+		slog.Error("flags", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 
-	// check secret key to be 32 bytes
+	// Secret key need to be 32 bytes
 	if len(*secretKey) != 32 {
 		slog.Error("Secret key must be 32 bytes long", slog.Int("current_len", len(*secretKey)))
 		os.Exit(1)
@@ -58,7 +60,7 @@ func main() {
 		defer shutdown()
 	}
 
-	// read config file
+	// Load OIDC provider config file
 	c, err := authz.ConfigFromYamlFile(*providersConfig)
 	if err != nil {
 		slog.Error("Provider configuration error", err)
