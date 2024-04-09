@@ -31,7 +31,7 @@ connectors:
 expiry:
   deviceRequests: "1m"
   signingKeys: "6h"
-  idTokens: "1m"
+  idTokens: "1h"
   refreshTokens:
     reuseInterval: "3s"
     validIfNotUsedFor: "360h" # 15 days

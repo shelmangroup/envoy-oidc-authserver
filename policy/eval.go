@@ -8,6 +8,8 @@ import (
 
 	auth "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/service/auth/v3"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/topdown/builtins"
+	iCache "github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,8 +21,9 @@ import (
 var tracer = otel.Tracer("policy")
 
 type Policy struct {
-	q    rego.PreparedEvalQuery
-	name string
+	q      rego.PreparedEvalQuery
+	icache iCache.InterQueryCache
+	name   string
 }
 
 // NewPolicy creates a new Policy with the given policy.
@@ -41,8 +44,9 @@ func NewPolicy(name, policy string) (*Policy, error) {
 	}
 
 	return &Policy{
-		q:    r,
-		name: name,
+		q:      r,
+		icache: iCache.NewInterQueryCache(nil),
+		name:   name,
 	}, nil
 }
 
@@ -53,7 +57,12 @@ func (p *Policy) Eval(ctx context.Context, input map[string]any) (bool, bool, er
 
 	slog.Debug("policy", slog.Any("input", input))
 
-	rs, err := p.q.Eval(ctx, rego.EvalInput(input))
+	rs, err := p.q.Eval(
+		ctx,
+		rego.EvalInput(input),
+		rego.EvalInterQueryBuiltinCache(p.icache),
+		rego.EvalNDBuiltinCache(builtins.NDBCache{}),
+	)
 	if err != nil {
 		span.RecordError(err, trace.WithStackTrace(true))
 		span.SetStatus(codes.Error, err.Error())

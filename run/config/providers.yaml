@@ -18,12 +18,14 @@ providers:
       default allow = false
       default bypass_auth = false
 
+      jwks_url := "http://localhost:5556/dex/keys"
+
       allow if {
         action_allowed
       }
 
       bypass_auth if {
-        token_verified
+        pre_authed
       }
 
       # allow callback/logout path
@@ -42,7 +44,7 @@ providers:
         glob.match("/", ["/"], httpreq.path)
       }
 
-      token_verified if {
+      pre_authed if {
         token.valid
       	now := time.now_ns() / 1000000000
         now < token.payload.exp
@@ -50,15 +52,12 @@ providers:
       }
 
       jwks_request(url) := http.send({
-        "url": url,
-        "method": "GET",
-        "force_cache": true,
-        "force_cache_duration_seconds": 3600
+        "url": url, "method": "GET", "force_cache": true, "force_cache_duration_seconds": 3600
       })
 
       token := { "payload": payload, "valid": valid } if {
         [_, parsed_jwt] := split(httpreq.headers["authorization"], " ")
-        jwks := jwks_request("http://localhost:5556/dex/keys").raw_body
+        jwks := jwks_request(jwks_url).raw_body
         valid := io.jwt.verify_rs256(parsed_jwt, jwks)
         [_, payload, _] := io.jwt.decode(parsed_jwt)
       }
