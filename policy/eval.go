@@ -2,11 +2,11 @@ package policy
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 
 	auth "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/service/auth/v3"
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
 	"go.opentelemetry.io/otel"
@@ -19,56 +19,75 @@ import (
 var tracer = otel.Tracer("policy")
 
 type Policy struct {
-	rego *rego.Rego
+	q    rego.PreparedEvalQuery
 	name string
 }
 
 // NewPolicy creates a new Policy with the given policy.
-func NewPolicy(name, policy string) *Policy {
-	return &Policy{
-		rego: rego.New(rego.Query("data.authz.allow"), rego.Module("OpenPolicyAgent", policy)),
-		name: name,
+func NewPolicy(name, policy string) (*Policy, error) {
+	ctx := context.Background()
+	query := "allow = data.authz.allow"
+	// Allow skipAuth for PreAuth policy
+	if name == "PreAuth" {
+		query = "allow = data.authz.allow; bypass_auth = data.authz.bypass_auth"
 	}
+
+	r, err := rego.New(
+		rego.Query(query),
+		rego.Module("OpenPolicyAgent", policy),
+	).PrepareForEval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Policy{
+		q:    r,
+		name: name,
+	}, nil
 }
 
 // Eval evaluates the policy with the given input and returns the result.
-func (p *Policy) Eval(ctx context.Context, input map[string]any) (bool, error) {
+func (p *Policy) Eval(ctx context.Context, input map[string]any) (bool, bool, error) {
 	ctx, span := tracer.Start(ctx, p.name+"PolicyEval")
 	defer span.End()
 
-	v, err := ast.InterfaceToValue(input)
-	if err != nil {
-		return false, err
-	}
+	slog.Debug("policy", slog.Any("input", input))
 
-	q, err := p.rego.PrepareForEval(ctx)
+	rs, err := p.q.Eval(ctx, rego.EvalInput(input))
 	if err != nil {
 		span.RecordError(err, trace.WithStackTrace(true))
 		span.SetStatus(codes.Error, err.Error())
-		return false, err
+		return false, false, err
 	}
 
-	rs, err := q.Eval(ctx, rego.EvalParsedInput(v))
-	if err != nil {
-		span.RecordError(err, trace.WithStackTrace(true))
-		span.SetStatus(codes.Error, err.Error())
-		return false, err
+	if len(rs) == 0 {
+		return false, false, errors.New("no results returned! No default value for `allow` and/or `bypass_auth` in policy?")
+	}
+
+	allow, ok := rs[0].Bindings["allow"].(bool)
+	if !ok {
+		return false, false, errors.New("no allow result")
+	}
+
+	if !allow {
+		span.SetStatus(codes.Error, "policy denied")
+		return false, false, nil
+	}
+
+	bypassAuth, ok := rs[0].Bindings["bypass_auth"].(bool)
+	if !ok {
+		bypassAuth = false
 	}
 
 	span.AddEvent("decision_log",
 		trace.WithAttributes(
-			attribute.Bool("is_allowed", rs.Allowed()),
+			attribute.Bool("allowed", allow),
+			attribute.Bool("bypass_auth", bypassAuth),
 		),
 	)
-	slog.Debug("policy", slog.Any("input", input))
-
-	if !rs.Allowed() {
-		span.SetStatus(codes.Error, "policy denied")
-		return false, nil
-	}
 
 	span.SetStatus(codes.Ok, "allowed")
-	return true, nil
+	return allow, bypassAuth, nil
 }
 
 func RequestOrResponseToInput(req any) (map[string]any, error) {

@@ -117,7 +117,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 
-		allowed, err := provider.preAuthPolicy.Eval(ctx, resInput)
+		allowed, bypassAuth, err := provider.preAuthPolicy.Eval(ctx, resInput)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -128,6 +128,11 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		if !allowed {
 			span.SetStatus(codes.Error, "PreAuth policy denied the request")
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PreAuth policy denied the request")), nil
+		}
+
+		if bypassAuth {
+			span.SetStatus(codes.Ok, "bypassAuth policy allowed the request")
+			return connect.NewResponse(s.authResponse(true, envoy_type.StatusCode_OK, nil, nil, "skipAuth policy allowed the request")), nil
 		}
 	}
 
@@ -149,7 +154,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 
-		allowed, err := provider.postAuthPolicy.Eval(ctx, respInput)
+		allowed, _, err := provider.postAuthPolicy.Eval(ctx, respInput)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
 			span.SetStatus(codes.Error, err.Error())

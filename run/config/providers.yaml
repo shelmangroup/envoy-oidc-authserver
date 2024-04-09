@@ -13,28 +13,54 @@ providers:
       package authz
 
       import rego.v1
-      import input.attributes.request.http
+      import input.attributes.request.http as httpreq
 
       default allow = false
+      default bypass_auth = false
 
       allow if {
         action_allowed
       }
 
+      bypass_auth if {
+        token_verified
+      }
+
       # allow callback/logout path
       action_allowed if {
-        http.method == "GET"
-        glob.match("/_authz/*", ["/"], http.path)
+        httpreq.method == "GET"
+        glob.match("/_authz/*", ["/"], httpreq.path)
       }
 
       action_allowed if {
-        http.method == "GET"
-        glob.match("/api/info", ["/"], http.path)
+        httpreq.method == "GET"
+        glob.match("/api/info", ["/"], httpreq.path)
       }
 
       action_allowed if {
-        http.method == "GET"
-        glob.match("/", ["/"], http.path)
+        httpreq.method == "GET"
+        glob.match("/", ["/"], httpreq.path)
+      }
+
+      token_verified if {
+        token.valid
+      	now := time.now_ns() / 1000000000
+        now < token.payload.exp
+        token.payload.email == "kilgore@kilgore.trout"
+      }
+
+      jwks_request(url) := http.send({
+        "url": url,
+        "method": "GET",
+        "force_cache": true,
+        "force_cache_duration_seconds": 3600
+      })
+
+      token := { "payload": payload, "valid": valid } if {
+        [_, parsed_jwt] := split(httpreq.headers["authorization"], " ")
+        jwks := jwks_request("http://localhost:5556/dex/keys").raw_body
+        valid := io.jwt.verify_rs256(parsed_jwt, jwks)
+        [_, payload, _] := io.jwt.decode(parsed_jwt)
       }
 
     postAuthPolicy: |

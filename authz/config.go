@@ -64,11 +64,17 @@ func initialize(cfg *Config) (*Config, error) {
 		cfg.Providers[i].p = provider
 
 		if c.PreAuthPolicy != "" {
-			cfg.Providers[i].preAuthPolicy = policy.NewPolicy("PreAuth", c.PreAuthPolicy)
+			cfg.Providers[i].preAuthPolicy, err = policy.NewPolicy("PreAuth", c.PreAuthPolicy)
+			if err != nil {
+				return nil, err
+			}
 			slog.Info("loaded pre-auth policy", slog.String("issuer", c.IssuerURL))
 		}
 		if c.PostAuthPolicy != "" {
-			cfg.Providers[i].postAuthPolicy = policy.NewPolicy("PostAuth", c.PostAuthPolicy)
+			cfg.Providers[i].postAuthPolicy, err = policy.NewPolicy("PostAuth", c.PostAuthPolicy)
+			if err != nil {
+				return nil, err
+			}
 			slog.Info("loaded post-auth policy", slog.String("issuer", c.IssuerURL))
 		}
 	}
