@@ -22,6 +22,7 @@ providers:
 
       allow if {
         action_allowed
+        print("allowed:", action_allowed)
       }
 
       bypass_auth if {
@@ -41,6 +42,7 @@ providers:
 
       action_allowed if {
         httpreq.method == "GET"
+        print("request path:", httpreq.path)
         glob.match("/", ["/"], httpreq.path)
       }
 

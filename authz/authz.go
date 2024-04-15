@@ -94,6 +94,14 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 		return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Unauthorized, nil, nil, "no header matches any auth provider")), nil
 	}
 
+	requestedURL := httpReq.GetScheme() + "://" + httpReq.GetHost() + httpReq.GetPath()
+	if span.IsRecording() {
+		span.SetAttributes(
+			semconv.URLFull(requestedURL),
+			semconv.SourceAddress(httpReq.GetHeaders()["x-forwarded-for"]),
+		)
+	}
+
 	span.AddEvent("provider config",
 		trace.WithAttributes(
 			attribute.String("issuer_url", provider.IssuerURL),
@@ -196,12 +204,6 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	}
 
 	slog.Debug("session data found in cookie", slog.String("url", requestedURL))
-	if span.IsRecording() {
-		span.SetAttributes(
-			semconv.URLFull(requestedURL),
-			semconv.SourceAddress(req.GetHeaders()["x-forwarded-for"]),
-		)
-	}
 
 	// If the request is for the callback URI, then we need to exchange the code for tokens
 	if strings.HasPrefix(requestedURL, provider.CallbackURI+"?") && sessionData.AccessToken == "" {

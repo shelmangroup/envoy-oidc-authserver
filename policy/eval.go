@@ -10,6 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	iCache "github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/util"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -26,6 +27,24 @@ type Policy struct {
 	name   string
 }
 
+type tracePrintHook struct {
+	Name string
+}
+
+func (h tracePrintHook) Print(c print.Context, msg string) error {
+	_, span := tracer.Start(c.Context, h.Name+"PrintHook")
+	defer span.End()
+	span.AddEvent("PrintHook",
+		trace.WithAttributes(
+			attribute.String("msg", msg),
+			attribute.Int("row", c.Location.Row),
+		),
+	)
+	span.SetStatus(codes.Ok, "ok")
+	slog.Debug(h.Name, slog.String("msg", msg), slog.Int("row", c.Location.Row))
+	return nil
+}
+
 // NewPolicy creates a new Policy with the given policy.
 func NewPolicy(name, policy string) (*Policy, error) {
 	ctx := context.Background()
@@ -35,9 +54,15 @@ func NewPolicy(name, policy string) (*Policy, error) {
 		query = "allow = data.authz.allow; bypass_auth = data.authz.bypass_auth"
 	}
 
+	ph := &tracePrintHook{
+		Name: name,
+	}
+
 	r, err := rego.New(
 		rego.Query(query),
 		rego.Module("OpenPolicyAgent", policy),
+		rego.EnablePrintStatements(true),
+		rego.PrintHook(ph),
 	).PrepareForEval(ctx)
 	if err != nil {
 		return nil, err
