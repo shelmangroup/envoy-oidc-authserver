@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/fernet/fernet-go"
-	"github.com/grokify/go-pkce"
+	"github.com/matthewhartstonge/pkce"
 	"go.opentelemetry.io/otel/codes"
 
 	pb "github.com/shelmangroup/envoy-oidc-authserver/internal/gen/session/v1"
@@ -20,14 +20,15 @@ func GenerateSessionToken(ctx context.Context, secret []byte) (string, error) {
 	_, span := tracer.Start(ctx, "GenerateSessionToken")
 	defer span.End()
 
-	// Create a code_verifier with default 32 byte length.
-	codeVerifier, err := pkce.NewCodeVerifier(-1)
+	// Create a code_verifier with default 43 byte length.
+	pkceKey, err := pkce.New()
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return "", err
 	}
-	codeChallenge := pkce.CodeChallengeS256(codeVerifier)
+	codeChallenge := pkceKey.CodeChallenge()
+	codeVerifier := pkceKey.CodeVerifier()
 
 	// concat codeVerifier and codeChallenge (both are 43 bytes long)
 	msg := []byte(codeVerifier + codeChallenge)
