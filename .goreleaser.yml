@@ -2,6 +2,11 @@ before:
   hooks:
     - task buf:generate
 
+release:
+  replace_existing_artifacts: true
+  make_latest: true
+  mode: replace
+
 changelog:
   use: github
   filters:
