@@ -187,11 +187,32 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 	sessionCookieName := provider.CookieNamePrefix + "-" + ServiceName
 
 	requestedURL := req.GetScheme() + "://" + req.GetHost() + req.GetPath()
-	slog.Debug("client request url", slog.String("url", requestedURL))
+	xRequestedWith := req.GetHeaders()["x-requested-with"]
+	var isAjax bool
+	if xRequestedWith == "XMLHttpRequest" {
+		isAjax = true
+	}
+
+	span.AddEvent("request headers",
+		trace.WithAttributes(
+			attribute.String(":authority", req.GetHeaders()[":authority"]),
+			attribute.String("host", req.GetHost()),
+			attribute.String("path", req.GetPath()),
+			attribute.String("scheme", req.GetScheme()),
+			attribute.String("method", req.GetMethod()),
+			attribute.String("x-requested-with", xRequestedWith),
+			attribute.String("x-forwarded-for", req.GetHeaders()["x-forwarded-for"]),
+			attribute.String("user-agent", req.GetHeaders()["user-agent"]),
+			attribute.Bool("ajax_request", isAjax),
+		),
+	)
 
 	// check if cookie exists and fetch session data from cookie
 	sessionToken, sessionData := s.getSessionCookieData(ctx, req, sessionCookieName)
 	if sessionToken == "" || sessionData == nil {
+		if isAjax {
+			return s.authResponse(false, envoy_type.StatusCode_Unauthorized, nil, nil, "unauthorized"), nil
+		}
 		slog.Debug("session data not found in cookie, creating new")
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
 		if err != nil {
@@ -235,6 +256,10 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 
 	sessionData, err := s.validateTokens(ctx, provider, sessionData, sessionToken)
 	if err != nil {
+		// if req is ajax, return 401, otherwise redirect to IdpAuthURL
+		if isAjax {
+			return s.authResponse(false, envoy_type.StatusCode_Unauthorized, nil, nil, "unauthorized"), nil
+		}
 		slog.Warn("couldn't validating tokens", slog.String("err", err.Error()))
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
 		if err != nil {
