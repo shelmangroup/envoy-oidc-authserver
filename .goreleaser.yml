@@ -2,6 +2,14 @@ before:
   hooks:
     - task buf:generate
 
+changelog:
+  use: github
+  filters:
+    include:
+      - "^feat"
+      - "^fix"
+      - "^chore"
+
 builds:
   - env: ["CGO_ENABLED=0"]
     binary: envoy-oidc-authserver
