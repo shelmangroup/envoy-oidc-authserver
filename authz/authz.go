@@ -147,8 +147,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 	// Call the auth flow
 	resp, err := s.authProcess(ctx, httpReq, provider)
 	if err != nil {
-		slog.Error("authProcess failed", slog.String("err", err.Error()))
-		span.RecordError(err)
+		span.RecordError(err, trace.WithStackTrace(true))
 		span.SetStatus(codes.Error, err.Error())
 		resp = s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())
 	}
@@ -256,11 +255,9 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 
 	sessionData, err := s.validateTokens(ctx, provider, sessionData, sessionToken)
 	if err != nil {
-		// if req is ajax, return 401, otherwise redirect to IdpAuthURL
 		if isAjax {
 			return s.authResponse(false, envoy_type.StatusCode_Unauthorized, nil, nil, "unauthorized"), nil
 		}
-		slog.Warn("couldn't validating tokens", slog.String("err", err.Error()))
 		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
