@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 
-	"go.opentelemetry.io/contrib/zpages"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -19,12 +17,7 @@ import (
 
 // Global variables
 var (
-	zsp                 *zpages.SpanProcessor
 	ErrNoTracerProvider = errors.New("no tracer provider")
-)
-
-const (
-	ZPagesPath = "/tracez"
 )
 
 // SetupTracing sets up the OpenTelemetry tracing system.
@@ -35,7 +28,6 @@ func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 			semconv.ServiceName("envoy-oidc-authserver"),
 		),
 	)
-
 	if err != nil {
 		slog.Error("Failed to setup otel tracing", err)
 		return nil
@@ -61,9 +53,6 @@ func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 		sampler = sdktrace.TraceIDRatioBased(sampleRatio)
 	}
 
-	// zpages is a handler that can be used to view traces in the browser.
-	zsp = zpages.NewSpanProcessor()
-
 	// Register the trace exporter with a TracerProvider, using a batch
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
@@ -71,8 +60,6 @@ func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 		sdktrace.WithSampler(sampler),
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
-		// load zpages span processor
-		sdktrace.WithSpanProcessor(zsp),
 	)
 	otel.SetTracerProvider(tracerProvider)
 
@@ -87,11 +74,5 @@ func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 		if err != nil {
 			slog.Error("Failed to shutdown the tracer provider", err)
 		}
-	}
-}
-
-func ZPagesHandlerFunc() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		zpages.NewTracezHandler(zsp).ServeHTTP(w, r)
 	}
 }

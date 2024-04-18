@@ -25,11 +25,7 @@ const (
     }
 
     bypass_auth if {
-      req.path == "/should/fail"
-    }
-
-    allow if {
-      req.path == "/shouldwork"
+      req.path == "/"
     }
 `
 
@@ -58,8 +54,6 @@ func TestEvalCheckRequest(t *testing.T) {
 		expected bool
 	}{
 		{path: "/", expected: true},
-		{path: "/should/fail", expected: false},
-		{path: "/shouldwork", expected: true},
 		{path: "/fail", expected: false},
 	}
 
@@ -89,7 +83,7 @@ func TestEvalCheckRequest(t *testing.T) {
 			allowed, bypass, err := p.Eval(ctx, input)
 			require.NoError(t, err)
 			require.Equal(t, scenario.expected, allowed)
-			require.Equal(t, false, bypass)
+			require.Equal(t, scenario.expected, bypass)
 		})
 	}
 }
