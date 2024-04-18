@@ -16,7 +16,7 @@ func NewSessionData() *pb.SessionData {
 	return &pb.SessionData{}
 }
 
-func GenerateSessionToken(ctx context.Context, secret []byte) (string, error) {
+func GenerateSessionToken(ctx context.Context, secret [32]byte) (string, error) {
 	_, span := tracer.Start(ctx, "GenerateSessionToken")
 	defer span.End()
 
@@ -34,7 +34,7 @@ func GenerateSessionToken(ctx context.Context, secret []byte) (string, error) {
 	msg := []byte(codeVerifier + codeChallenge)
 
 	key := new(fernet.Key)
-	copy(key[:], secret)
+	copy(key[:], secret[:])
 	token, err := fernet.EncryptAndSign(msg, key)
 	if err != nil {
 		span.RecordError(err)
@@ -46,7 +46,7 @@ func GenerateSessionToken(ctx context.Context, secret []byte) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(token), nil
 }
 
-func VerifySessionToken(ctx context.Context, token string, secret []byte, ttl time.Duration) (string, error) {
+func VerifySessionToken(ctx context.Context, token string, secret [32]byte, ttl time.Duration) (string, error) {
 	_, span := tracer.Start(ctx, "VerifySessionToken")
 	defer span.End()
 
@@ -58,7 +58,7 @@ func VerifySessionToken(ctx context.Context, token string, secret []byte, ttl ti
 	}
 
 	key := new(fernet.Key)
-	copy(key[:], secret)
+	copy(key[:], secret[:])
 	msg := fernet.VerifyAndDecrypt([]byte(t), ttl, []*fernet.Key{key})
 	if msg == nil {
 		span.RecordError(errInvalidOrExpired)

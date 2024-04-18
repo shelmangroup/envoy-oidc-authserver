@@ -40,8 +40,8 @@ func main() {
 	}
 
 	// Secret key need to be 32 bytes
-	if len(*secretKey) != 32 {
-		slog.Error("Secret key must be 32 bytes long", slog.Int("current_len", len(*secretKey)))
+	if *secretKey == "" {
+		slog.Error("Secret key is required")
 		os.Exit(1)
 	}
 

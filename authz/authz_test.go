@@ -2,6 +2,7 @@ package authz
 
 import (
 	"context"
+	"crypto/sha256"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -53,10 +54,10 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	})
 	require.NoError(t, err, "init cfg should not have failed")
 
-	secretKey := []byte("G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t")
+	secretKey := sha256.Sum256([]byte("secretKey"))
 	authz := Service{cfg: testCfg, store: store.NewStore(nil, 0), secretKey: secretKey}
 
-	//1. Check Authorization response without callback and no cookie req.
+	// 1. Check Authorization response without callback and no cookie req.
 	initialRequestedURL := "http://foo.bar/"
 	noCookieReq := connect.NewRequest(
 		&auth.CheckRequest{
@@ -81,7 +82,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	assert.Equal(t, envoy_type.StatusCode_Found, resp.Msg.GetDeniedResponse().GetStatus().GetCode())
 	assert.Equal(t, testCfg.Providers[0].p.IdpAuthURL(""), resp.Msg.GetDeniedResponse().GetHeaders()[0].GetHeader().GetValue())
 
-	//2. Check Authorization response with callback and cookie req.
+	// 2. Check Authorization response with callback and cookie req.
 	cookie := resp.Msg.GetDeniedResponse().GetHeaders()[4].GetHeader().GetValue()
 	cookieReq := connect.NewRequest(
 		&auth.CheckRequest{
@@ -105,7 +106,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	assert.Equal(t, int32(rpc.PERMISSION_DENIED), resp.Msg.Status.Code)
 	assert.Equal(t, initialRequestedURL, resp.Msg.GetDeniedResponse().GetHeaders()[0].GetHeader().GetValue())
 
-	//3. Success with Auth header set
+	// 3. Success with Auth header set
 	successReq := connect.NewRequest(
 		&auth.CheckRequest{
 			Attributes: &auth.AttributeContext{

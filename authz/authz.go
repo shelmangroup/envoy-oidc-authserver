@@ -3,6 +3,7 @@ package authz
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"html/template"
 	"log/slog"
@@ -41,7 +42,7 @@ type Service struct {
 
 	cfg               *Config
 	store             *store.Store
-	secretKey         []byte
+	secretKey         [32]byte
 	sessionExpiration time.Duration
 }
 
@@ -57,7 +58,7 @@ func NewService(cfg *Config, secretKey string, redisAddrs []string) *Service {
 		cfg:               cfg,
 		sessionExpiration: ttl,
 		store:             store.NewStore(redisAddrs, ttl),
-		secretKey:         []byte(secretKey),
+		secretKey:         sha256.Sum256([]byte(secretKey)),
 	}
 }
 
