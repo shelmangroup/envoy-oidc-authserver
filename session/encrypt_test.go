@@ -29,4 +29,8 @@ func TestEncryptDecryptSession(t *testing.T) {
 	s, err = DecryptSession(context.Background(), faultyKey, buf)
 	assert.Error(t, err)
 	assert.Nil(t, s)
+
+	// faulty box length
+	_, err = DecryptSession(context.Background(), key, []byte("too short"))
+	assert.Error(t, err)
 }
