@@ -153,6 +153,8 @@ func RequestOrResponseToInput(req any) (map[string]any, error) {
 				break
 			}
 		}
+	default:
+		return nil, errors.New("unknown type")
 	}
 
 	return input, nil
