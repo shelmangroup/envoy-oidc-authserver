@@ -7,7 +7,7 @@ tasks:
   test:
     deps: [buf:generate]
     cmds:
-      - gotestsum -- -short -coverprofile=coverage.out {{or .CLI_ARGS "./..."}}
+      - gotestsum -- -short -coverprofile=coverage.out {{or .CLI_ARGS "./..."}} | grep -v "/gen/"
 
   test:watch:
     desc: (Re)run (Go) tests automatically when files change
