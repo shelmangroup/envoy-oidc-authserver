@@ -3,9 +3,9 @@ module github.com/shelmangroup/envoy-oidc-authserver
 go 1.22.1
 
 require (
-	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.16.0-20240416201307-a7ebf10f2016.1
-	buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go v1.33.0-20240416201307-a7ebf10f2016.1
-	connectrpc.com/connect v1.16.0
+	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.16.1-20240418202234-356aa6d079b7.1
+	buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go v1.33.0-20240418202234-356aa6d079b7.1
+	connectrpc.com/connect v1.16.1
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
 	connectrpc.com/otelconnect v0.7.0
@@ -15,7 +15,7 @@ require (
 	github.com/gogo/googleapis v1.4.1
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.9.0
-	github.com/zitadel/oidc/v3 v3.22.0
+	github.com/zitadel/oidc/v3 v3.22.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.50.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.50.0
 	go.opentelemetry.io/otel v1.25.0
@@ -40,8 +40,8 @@ require (
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.52.3 // indirect
-	github.com/prometheus/procfs v0.13.0 // indirect
+	github.com/prometheus/common v0.53.0 // indirect
+	github.com/prometheus/procfs v0.14.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
