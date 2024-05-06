@@ -113,8 +113,6 @@ func (c *Config) Match(headerName, headerValue string) *OIDCProvider {
 			case p.HeaderMatch.Prefix != "" && strings.HasPrefix(headerValue, p.HeaderMatch.Prefix):
 				slog.Debug("header match prefix", slog.String("name", headerName), slog.String("value", headerValue))
 				return &p
-			default:
-				return nil
 			}
 		}
 	}
