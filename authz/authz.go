@@ -63,7 +63,7 @@ func NewService(cfg *Config, secretKey string, redisAddrs []string) *Service {
 }
 
 func (s *Service) NewHandler() (string, http.Handler) {
-	otel, _ := otelconnect.NewInterceptor()
+	otel, _ := otelconnect.NewInterceptor(otelconnect.WithTrustRemote())
 	return authv3connect.NewAuthorizationHandler(s, connect.WithInterceptors(otel))
 }
 
