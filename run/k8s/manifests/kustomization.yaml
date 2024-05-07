@@ -8,11 +8,40 @@ resources:
   - deployment.yaml
   - service.yaml
 
+helmCharts:
+  - name: redis
+    releaseName: redis
+    version: 19.1.5
+    repo: oci://registry-1.docker.io/bitnamicharts
+    valuesInline:
+      architecture: replication
+      auth:
+        enabled: false
+        sentinel: false
+      image:
+        registry: cgr.dev
+        repository: chainguard/redis-server-bitnami
+        tag: latest
+      master:
+        persistence:
+          enabled: false
+      metrics:
+        enabled: true
+      replica:
+        replicaCount: 3
+        persistence:
+          enabled: false
+      sentinel:
+        enabled: true
+        quorum: 2
+        persistence:
+          enabled: false
+        image:
+          registry: cgr.dev
+          repository: chainguard/redis-sentinel-bitnami
+          tag: latest
+
 configMapGenerator:
   - name: oidc-authserver
     files:
       - oidc-providers.yaml
-
-images:
-  - name: ghcr.io/shelmangroup/envoy-oidc-authserver
-    newTag: 0.1.0

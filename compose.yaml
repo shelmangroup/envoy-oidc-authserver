@@ -12,15 +12,11 @@ services:
       - -c
       - /envoy.yaml
     network_mode: host
-    ports:
-      - "${PORT_PROXY:-8000}:8000"
 
   dex:
     image: ghcr.io/dexidp/dex:latest
     volumes:
       - ./run/config/dex.yaml:/dex.yaml
-    ports:
-      - "${PORT_DEX:-5556}:5556"
     network_mode: host
     command:
       - dex

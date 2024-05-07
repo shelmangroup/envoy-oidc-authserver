@@ -6,10 +6,6 @@ spec:
   replicas: 3
   template:
     spec:
-      tolerations:
-        - effect: NoSchedule
-          key: node-role.kubernetes.io/control-plane
-          operator: Exists
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -24,18 +20,18 @@ spec:
               weight: 100
       containers:
         - name: oidc-authserver
-          image: ghcr.io/shelmangroup/envoy-oidc-authserver
+          image: ghcr.io/shelmangroup/envoy-oidc-authserver:latest
           ports:
             - name: grpc
               containerPort: 8080
               protocol: TCP
           env:
             # - name: ENVOY_AUTHZ_OTLP_ADDR
-            #   value: otel-collector.monitoring.svc.cluster.local:14317
+            #   value: otel-collector.monitoring.svc.cluster.local:4317
             - name: ENVOY_AUTHZ_PROVIDERS_CONFIG
               value: /run/oidc-providers.yaml
             - name: ENVOY_AUTHZ_REDIS_ADDRS
-              value: rfs-redis:26379
+              value: redis:26379
             - name: ENVOY_AUTHZ_LOG_LEVEL
               value: info
             - name: ENVOY_AUTHZ_SECRET_KEY
