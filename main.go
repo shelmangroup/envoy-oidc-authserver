@@ -47,7 +47,7 @@ func main() {
 
 	logger, err := logging.NewLogger(*logLevel, *logJson)
 	if err != nil {
-		slog.Error("Logging error", err)
+		slog.Error("Logging error", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 	slog.SetDefault(logger)
@@ -63,7 +63,7 @@ func main() {
 	// Load OIDC provider config file
 	c, err := authz.ConfigFromYamlFile(*providersConfig)
 	if err != nil {
-		slog.Error("Provider configuration error", err)
+		slog.Error("Provider configuration error", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 
@@ -72,7 +72,7 @@ func main() {
 	defer func() {
 		err := s.Shutdown()
 		if err != nil {
-			slog.Error("HTTP Server shutdown error", err)
+			slog.Error("HTTP Server shutdown error", slog.String("err", err.Error()))
 		}
 	}()
 

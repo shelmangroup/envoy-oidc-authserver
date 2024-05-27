@@ -29,19 +29,19 @@ func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 		),
 	)
 	if err != nil {
-		slog.Error("Failed to setup otel tracing", err)
+		slog.Error("Failed to setup otel tracing", slog.String("err", err.Error()))
 		return nil
 	}
 
-	conn, err := grpc.DialContext(ctx, otlpAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(otlpAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		slog.Error("Failed to connect to the otel tracing agent", err)
+		slog.Error("Failed to connect to the otel tracing agent", slog.String("err", err.Error()))
 		return nil
 	}
 	// Set up a trace exporter
 	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
 	if err != nil {
-		slog.Error("Failed to create the trace exporter", err)
+		slog.Error("Failed to create the trace exporter", slog.String("err", err.Error()))
 		return nil
 	}
 
@@ -72,7 +72,7 @@ func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 	return func() {
 		err := tracerProvider.Shutdown(ctx)
 		if err != nil {
-			slog.Error("Failed to shutdown the tracer provider", err)
+			slog.Error("Failed to shutdown the tracer provider", slog.String("err", err.Error()))
 		}
 	}
 }
