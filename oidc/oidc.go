@@ -83,7 +83,7 @@ func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken st
 	ctx, span := tracer.Start(ctx, "VerifyTokens")
 	defer span.End()
 
-	_, err := rp.VerifyTokens[*oidc.IDTokenClaims](ctx, accessToken, idToken, o.provider.IDTokenVerifier())
+	claims, err := rp.VerifyTokens[*oidc.IDTokenClaims](ctx, accessToken, idToken, o.provider.IDTokenVerifier())
 	if err != nil {
 		if err == oidc.ErrExpired {
 			expired = true
@@ -93,7 +93,10 @@ func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken st
 		}
 	}
 	span.AddEvent("log", trace.WithAttributes(
-		attribute.Bool("has_expired", expired)),
+		attribute.Bool("has_expired", expired),
+		attribute.String("expire", claims.GetExpiration().String()),
+		attribute.String("subject", claims.GetSubject()),
+		attribute.String("email", claims.GetUserInfo().Email)),
 	)
 	span.SetStatus(codes.Ok, "success")
 	return expired, nil
