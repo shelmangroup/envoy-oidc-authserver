@@ -80,6 +80,10 @@ func (o *OIDCProvider) IdpAuthURL(codeChallenge string) string {
 
 func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken string) (bool, error) {
 	var expired bool
+	var expires string
+	var subject string
+	var email string
+
 	ctx, span := tracer.Start(ctx, "VerifyTokens")
 	defer span.End()
 
@@ -92,11 +96,18 @@ func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken st
 			return false, err
 		}
 	}
+
+	if claims != nil {
+		expires = claims.GetExpiration().String()
+		subject = claims.GetSubject()
+		email = claims.GetUserInfo().Email
+	}
+
 	span.AddEvent("log", trace.WithAttributes(
 		attribute.Bool("has_expired", expired),
-		attribute.String("expire", claims.GetExpiration().String()),
-		attribute.String("subject", claims.GetSubject()),
-		attribute.String("email", claims.GetUserInfo().Email)),
+		attribute.String("expire", expires),
+		attribute.String("subject", subject),
+		attribute.String("email", email)),
 	)
 	span.SetStatus(codes.Ok, "success")
 	return expired, nil
