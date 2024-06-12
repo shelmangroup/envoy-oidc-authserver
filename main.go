@@ -60,7 +60,12 @@ func main() {
 		slog.Error("Tracing error", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
-	defer otelShutdown(ctx)
+	defer func() {
+		err := otelShutdown(ctx)
+		if err != nil {
+			slog.Error("Tracing shutdown error", slog.String("err", err.Error()))
+		}
+	}()
 
 	// Load OIDC provider config file
 	c, err := authz.ConfigFromYamlFile(*providersConfig)
