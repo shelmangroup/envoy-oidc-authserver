@@ -22,6 +22,7 @@
         golines
         goreleaser
         gotestsum
+        glibcLocales
         ko
         protobuf
         protoc-gen-go
@@ -31,6 +32,7 @@
     {
       devShells = {
         default = pkgs.mkShell {
+          LOCALE_ARCHIVE = "${pkgs.glibcLocales}/lib/locale/locale-archive";
           packages = devPkgs;
         };
       };
