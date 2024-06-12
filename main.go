@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -20,8 +21,6 @@ import (
 func main() {
 	fs := ff.NewFlagSet("envoy-oidc-authserver")
 	addr := fs.String('s', "listen-addr", ":8080", "address to listen on")
-	otlpAddr := fs.StringLong("otlp-addr", "", "address to send OTLP traces to")
-	otlpSampleRatio := fs.Float64Long("otlp-sample-ratio", 1.0, "OTLP sample ratio, default is always sample")
 	redisAddrs := fs.StringSet('r', "redis-addrs", "sentinel addresses to use for Redis cache, omit for in memory cache")
 	secretKey := fs.StringLong("secret-key", "", "secret key used to encrypt session tokens")
 	providersConfig := fs.String('c', "providers-config", "", "OIDC procider configuration file")
@@ -55,10 +54,13 @@ func main() {
 	slog.Info("Hello from Shelman Group Envoy OIDC Authserver!")
 
 	// Setup tracing
-	if *otlpAddr != "" {
-		shutdown := telemetry.SetupTracing(*otlpAddr, *otlpSampleRatio)
-		defer shutdown()
+	ctx := context.Background()
+	otelShutdown, err := telemetry.SetupTracing(ctx)
+	if err != nil {
+		slog.Error("Tracing error", slog.String("err", err.Error()))
+		os.Exit(1)
 	}
+	defer otelShutdown(ctx)
 
 	// Load OIDC provider config file
 	c, err := authz.ConfigFromYamlFile(*providersConfig)

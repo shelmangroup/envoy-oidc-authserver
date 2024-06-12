@@ -11,18 +11,24 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-)
-
-// Global variables
-var (
-	ErrNoTracerProvider = errors.New("no tracer provider")
 )
 
 // SetupTracing sets up the OpenTelemetry tracing system.
-func SetupTracing(otlpAddr string, sampleRatio float64) func() {
-	ctx := context.Background()
+func SetupTracing(ctx context.Context) (shutdown func(context.Context) error, err error) {
+	var shutdownFuncs []func(context.Context) error
+	shutdown = func(ctx context.Context) error {
+		var err error
+		for _, fn := range shutdownFuncs {
+			err = errors.Join(err, fn(ctx))
+		}
+		shutdownFuncs = nil
+		return err
+	}
+	// handleErr calls shutdown for cleanup and makes sure that all errors are returned.
+	handleErr := func(inErr error) {
+		err = errors.Join(inErr, shutdown(ctx))
+	}
+
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceName("envoy-oidc-authserver"),
@@ -30,34 +36,23 @@ func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 	)
 	if err != nil {
 		slog.Error("Failed to setup otel tracing", slog.String("err", err.Error()))
-		return nil
+		handleErr(err)
+		return
 	}
 
-	conn, err := grpc.NewClient(otlpAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		slog.Error("Failed to connect to the otel tracing agent", slog.String("err", err.Error()))
-		return nil
-	}
 	// Set up a trace exporter
-	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
+	// Use OTEL_EXPORTER_OTLP_ENDPOINT environment variable to configure endpoint
+	traceExporter, err := otlptracegrpc.New(ctx)
 	if err != nil {
 		slog.Error("Failed to create the trace exporter", slog.String("err", err.Error()))
-		return nil
-	}
-
-	// Use RatioBasedSampler to sample a fixed rate of traces.
-	var sampler sdktrace.Sampler
-	if sampleRatio == 1.0 {
-		sampler = sdktrace.AlwaysSample()
-	} else {
-		sampler = sdktrace.TraceIDRatioBased(sampleRatio)
+		handleErr(err)
+		return
 	}
 
 	// Register the trace exporter with a TracerProvider, using a batch
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
 	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sampler),
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
@@ -69,10 +64,5 @@ func SetupTracing(otlpAddr string, sampleRatio float64) func() {
 		propagation.Baggage{},
 	))
 
-	return func() {
-		err := tracerProvider.Shutdown(ctx)
-		if err != nil {
-			slog.Error("Failed to shutdown the tracer provider", slog.String("err", err.Error()))
-		}
-	}
+	return
 }

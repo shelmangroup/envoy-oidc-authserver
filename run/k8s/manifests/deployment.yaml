@@ -26,8 +26,8 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
-            # - name: ENVOY_AUTHZ_OTLP_ADDR
-            #   value: otel-collector.monitoring.svc.cluster.local:4317
+            # - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            #   value: http://otel-collector.monitoring.svc.cluster.local:4317
             - name: ENVOY_AUTHZ_PROVIDERS_CONFIG
               value: /run/oidc-providers.yaml
             - name: ENVOY_AUTHZ_REDIS_ADDRS

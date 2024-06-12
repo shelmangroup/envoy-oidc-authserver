@@ -23,7 +23,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.27.0
 	golang.org/x/net v0.26.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240610135401-a8a62080eff3
-	google.golang.org/grpc v1.64.0
 )
 
 require (
@@ -48,6 +47,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/yashtewari/glob-intersection v0.2.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
+	google.golang.org/grpc v1.64.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
