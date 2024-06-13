@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptrace"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -79,38 +81,36 @@ func (o *OIDCProvider) IdpAuthURL(codeChallenge string) string {
 }
 
 func (o *OIDCProvider) VerifyTokens(ctx context.Context, accessToken, idToken string) (bool, error) {
-	var expired bool
-	var expires string
-	var subject string
-	var email string
-
 	ctx, span := tracer.Start(ctx, "VerifyTokens")
 	defer span.End()
 
 	claims, err := rp.VerifyTokens[*oidc.IDTokenClaims](ctx, accessToken, idToken, o.provider.IDTokenVerifier())
 	if err != nil {
 		if err == oidc.ErrExpired {
-			expired = true
+			span.SetStatus(codes.Ok, "token expired")
+			return true, nil
 		} else {
 			span.RecordError(err)
+			span.SetStatus(codes.Error, "verify tokens failed")
 			return false, err
 		}
 	}
 
-	if claims != nil {
-		expires = claims.GetExpiration().String()
-		subject = claims.GetSubject()
-		email = claims.GetUserInfo().Email
+	if span.IsRecording() {
+		span.SetAttributes(
+			semconv.EnduserID(claims.GetUserInfo().Email),
+		)
 	}
 
 	span.AddEvent("log", trace.WithAttributes(
-		attribute.Bool("has_expired", expired),
-		attribute.String("expire", expires),
-		attribute.String("subject", subject),
-		attribute.String("email", email)),
+		attribute.Bool("expired", false),
+		attribute.String("expire", claims.GetExpiration().String()),
+		attribute.String("subject", claims.GetSubject()),
+		attribute.String("audience", strings.Join(claims.GetAudience(), ","))),
 	)
-	span.SetStatus(codes.Ok, "success")
-	return expired, nil
+
+	span.SetStatus(codes.Ok, "successfully verified token")
+	return false, nil
 }
 
 // RetrieveTokens retrieves the tokens from the idp callback redirect and returns them
