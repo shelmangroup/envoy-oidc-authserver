@@ -30,8 +30,8 @@ spec:
             #   value: http://otel-collector.monitoring.svc.cluster.local:4317
             - name: ENVOY_AUTHZ_PROVIDERS_CONFIG
               value: /run/oidc-providers.yaml
-            - name: ENVOY_AUTHZ_REDIS_ADDRS
-              value: redis:26379
+            - name: ENVOY_AUTHZ_REDIS_URL
+              value: redis+sentinel://redis/0?mastername=mymaster
             - name: ENVOY_AUTHZ_LOG_LEVEL
               value: info
             - name: ENVOY_AUTHZ_SECRET_KEY

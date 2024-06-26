@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,7 +22,7 @@ import (
 func main() {
 	fs := ff.NewFlagSet("envoy-oidc-authserver")
 	addr := fs.String('s', "listen-addr", ":8080", "address to listen on")
-	redisAddrs := fs.StringSet('r', "redis-addrs", "sentinel addresses to use for Redis cache, omit for in memory cache")
+	redisURL := fs.String('r', "redis-url", "", "URL to use for Redis cache, omit for in memory cache")
 	secretKey := fs.StringLong("secret-key", "", "secret key used to encrypt session tokens")
 	providersConfig := fs.String('c', "providers-config", "", "OIDC procider configuration file")
 	logJson := fs.BoolLong("log-json", "log in JSON format")
@@ -74,8 +75,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Parse the redis URL
+	u, err := url.Parse(*redisURL)
+	if err != nil {
+		slog.Error("Failed to parse redis URL", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
+
 	// Create new server
-	s := server.NewServer(*addr, authz.NewService(c, *secretKey, *redisAddrs))
+	s := server.NewServer(*addr, authz.NewService(c, *secretKey, u))
 	defer func() {
 		err := s.Shutdown()
 		if err != nil {

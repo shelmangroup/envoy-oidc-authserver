@@ -46,7 +46,7 @@ type Service struct {
 	sessionExpiration time.Duration
 }
 
-func NewService(cfg *Config, secretKey string, redisAddrs []string) *Service {
+func NewService(cfg *Config, secretKey string, redisURL *url.URL) *Service {
 	// Parse the session expiration time
 	ttl, err := time.ParseDuration(cfg.SessionExpiration)
 	if err != nil {
@@ -57,7 +57,7 @@ func NewService(cfg *Config, secretKey string, redisAddrs []string) *Service {
 	return &Service{
 		cfg:               cfg,
 		sessionExpiration: ttl,
-		store:             store.NewStore(redisAddrs, ttl),
+		store:             store.NewStore(redisURL, ttl),
 		secretKey:         sha256.Sum256([]byte(secretKey)),
 	}
 }

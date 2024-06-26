@@ -2,6 +2,7 @@ package store
 
 import (
 	"log/slog"
+	"net/url"
 	"time"
 
 	"github.com/eko/gocache/lib/v4/cache"
@@ -9,15 +10,15 @@ import (
 	gocache_store "github.com/eko/gocache/store/go_cache/v4"
 	redis_store "github.com/eko/gocache/store/redis/v4"
 	gocache "github.com/patrickmn/go-cache"
-	redis "github.com/redis/go-redis/v9"
 )
 
 type Store struct {
 	*cache.Cache[any]
 }
 
-func NewStore(redisAddrs []string, expiration time.Duration) *Store {
-	if redisAddrs == nil {
+func NewStore(url *url.URL, expiration time.Duration) *Store {
+	if url.String() == "" {
+		slog.Info("Using in memory cache")
 		gocacheClient := gocache.New(expiration, 10*time.Minute)
 		gocacheStore := gocache_store.NewGoCache(gocacheClient)
 
@@ -26,11 +27,12 @@ func NewStore(redisAddrs []string, expiration time.Duration) *Store {
 		}
 	}
 
-	slog.Info("Using Redis Sentinel cache", slog.Any("addrs", redisAddrs))
-	redisClient := redis.NewFailoverClient(&redis.FailoverOptions{
-		MasterName:    "mymaster",
-		SentinelAddrs: redisAddrs,
-	})
+	redisClient, err := GetRedisClient(url)
+	if err != nil {
+		slog.Error("Failed to connect to Redis", slog.String("err", err.Error()))
+		panic(err)
+	}
+	slog.Info("Using Redis cache", slog.String("url", url.String()))
 	redisStore := redis_store.NewRedis(redisClient, store.WithExpiration(expiration))
 	return &Store{
 		cache.New[any](redisStore),

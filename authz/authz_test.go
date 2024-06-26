@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"crypto/sha256"
+	"net/url"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -55,7 +56,7 @@ func TestCheckServiceAuthFlow(t *testing.T) {
 	require.NoError(t, err, "init cfg should not have failed")
 
 	secretKey := sha256.Sum256([]byte("secretKey"))
-	authz := Service{cfg: testCfg, store: store.NewStore(nil, 0), secretKey: secretKey}
+	authz := Service{cfg: testCfg, store: store.NewStore(&url.URL{}, 0), secretKey: secretKey}
 
 	// 1. Check Authorization response without callback and no cookie req.
 	initialRequestedURL := "http://foo.bar/"

@@ -1,7 +1,7 @@
 version: "3"
 
 services:
-  front-envoy:
+  envoy:
     image: docker.io/envoyproxy/envoy:v1.28-latest
     volumes:
       - ./run/config/envoy.yaml:/envoy.yaml
@@ -23,38 +23,16 @@ services:
       - serve
       - /dex.yaml
 
-  jaeger:
-    image: docker.io/jaegertracing/all-in-one:1.54
-    ports:
-      - "4317:4317"
-      - "8200:16686"
-
-  redis-master:
+  redis:
     image: redis
-    network_mode: host
-
-  redis-slave:
-    image: redis
-    command: >
-      bash -c "echo 'port 6380' > slave.conf &&
-      echo 'replicaof 127.0.0.1 6379' >> slave.conf &&
-      cat slave.conf &&
-      redis-server slave.conf"
-    network_mode: host
-
-  redis-sentinel:
-    image: redis
-    command: >
-      bash -c "echo 'port 26379' > sentinel.conf &&
-      echo 'dir /tmp' >> sentinel.conf &&
-      echo 'sentinel monitor mymaster 127.0.0.1 6379 1' >> sentinel.conf &&
-      echo 'sentinel down-after-milliseconds mymaster 5000' >> sentinel.conf &&
-      echo 'sentinel parallel-syncs mymaster 1' >> sentinel.conf &&
-      echo 'sentinel failover-timeout mymaster 5000' >> sentinel.conf &&
-      cat sentinel.conf &&
-      redis-server sentinel.conf --sentinel"
     network_mode: host
 
   podinfo:
     image: ghcr.io/stefanprodan/podinfo
     network_mode: host
+
+  jaeger:
+    image: docker.io/jaegertracing/all-in-one:1.54
+    ports:
+      - "4317:4317"
+      - "8200:16686"
