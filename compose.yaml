@@ -2,7 +2,7 @@ version: "3"
 
 services:
   envoy:
-    image: docker.io/envoyproxy/envoy:v1.28-latest
+    image: docker.io/envoyproxy/envoy:v1.30-latest
     volumes:
       - ./run/config/envoy.yaml:/envoy.yaml
     depends_on:
