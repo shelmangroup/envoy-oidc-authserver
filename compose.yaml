@@ -24,7 +24,7 @@ services:
       - /dex.yaml
 
   redis:
-    image: redis
+    image: docker.io/redis
     network_mode: host
 
   podinfo:
