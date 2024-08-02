@@ -3,12 +3,12 @@ module github.com/shelmangroup/envoy-oidc-authserver
 go 1.22.5
 
 require (
-	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.16.2-20240719192321-af130d96a850.1
-	buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go v1.34.2-20240719192321-af130d96a850.2
+	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.16.2-20240722201322-b1787804afc0.1
+	buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go v1.34.2-20240722201322-b1787804afc0.2
 	connectrpc.com/connect v1.16.2
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
-	connectrpc.com/otelconnect v0.7.0
+	connectrpc.com/otelconnect v0.7.1
 	github.com/eko/gocache/lib/v4 v4.1.6
 	github.com/eko/gocache/store/redis/v4 v4.2.2
 	github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611
@@ -22,7 +22,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.28.0
 	go.opentelemetry.io/otel/sdk v1.28.0
 	golang.org/x/net v0.27.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240711142825-46eb208f015d
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240730163845-b1a4ccb954bf
 )
 
 require (
@@ -32,7 +32,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.3 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.4 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
@@ -53,7 +53,7 @@ require (
 )
 
 require (
-	buf.build/gen/go/cncf/xds/protocolbuffers/go v1.34.2-20240422202033-c42b0ebe1c45.2 // indirect
+	buf.build/gen/go/cncf/xds/protocolbuffers/go v1.34.2-20240724200539-9bacd804c156.2 // indirect
 	buf.build/gen/go/envoyproxy/protoc-gen-validate/protocolbuffers/go v1.34.2-20240617172848-daf171c6cdb5.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -63,16 +63,16 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.21.0 // indirect
 	github.com/lmittmann/tint v1.0.5
 	github.com/matthewhartstonge/pkce v0.1.2
 	github.com/mattn/go-isatty v0.0.20
 	github.com/muhlemmer/gu v0.3.1 // indirect
-	github.com/open-policy-agent/opa v0.66.0
+	github.com/open-policy-agent/opa v0.67.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/redis/go-redis/v9 v9.6.0
+	github.com/redis/go-redis/v9 v9.6.1
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/zitadel/logging v0.6.0 // indirect
 	github.com/zitadel/schema v1.3.0 // indirect
@@ -85,7 +85,7 @@ require (
 	golang.org/x/oauth2 v0.21.0
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240722135656-d784300faade // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240730163845-b1a4ccb954bf // indirect
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
