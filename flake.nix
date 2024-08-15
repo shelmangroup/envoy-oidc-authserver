@@ -16,7 +16,7 @@
         buf
         delve
         git
-        go_1_22
+        go_1_23
         go-task
         golangci-lint
         golines
