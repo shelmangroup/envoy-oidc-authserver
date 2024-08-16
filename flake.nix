@@ -13,12 +13,12 @@
         inherit system;
       };
       devPkgs = with pkgs; [
+        (golangci-lint.override { buildGoModule = buildGo123Module; })
         buf
         delve
         git
         go_1_23
         go-task
-        golangci-lint
         golines
         goreleaser
         gotestsum
