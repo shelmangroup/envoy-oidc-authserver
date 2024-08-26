@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
@@ -43,19 +44,22 @@ func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes 
 	ctx := context.Background()
 	var pkce bool
 
-	client := &http.Client{
-		Timeout: time.Second * 5,
-		Transport: otelhttp.NewTransport(
-			http.DefaultTransport,
-			otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
-				return otelhttptrace.NewClientTrace(ctx)
-			}),
-		),
-	}
+	otelTransport := otelhttp.NewTransport(
+		http.DefaultTransport,
+		otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
+			return otelhttptrace.NewClientTrace(ctx)
+		}),
+	)
+	retryClient := retryablehttp.NewClient()
+	retryClient.HTTPClient.Transport = otelTransport
+	retryClient.Logger = slog.Default()
+	// TODO: make this configurable
+	retryClient.RetryMax = 10
+	retryClient.RetryWaitMax = 8 * time.Second
 
 	options := []rp.Option{
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
-		rp.WithHTTPClient(client),
+		rp.WithHTTPClient(retryClient.StandardClient()),
 	}
 
 	if clientSecret == "" {
