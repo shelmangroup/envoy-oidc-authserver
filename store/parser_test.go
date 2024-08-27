@@ -249,6 +249,24 @@ func TestRedisPoolFIFOArgOptFallback(t *testing.T) {
 	}
 }
 
+func TestRedisContextTimeoutArgOpt(t *testing.T) {
+	uri, _ := url.Parse("redis://myredis/0?contexttimeoutenabled=true")
+	opts := uriMustGetRedisOptions(uri)
+
+	if opts.ContextTimeoutEnabled != true {
+		t.Fail()
+	}
+}
+
+func TestRedisContextTimeoutArgOptFallback(t *testing.T) {
+	uri, _ := url.Parse("redis://myredis/0?contexttimeoutenabled=abc")
+	opts := uriMustGetRedisOptions(uri)
+
+	if opts.ContextTimeoutEnabled != false {
+		t.Fail()
+	}
+}
+
 func TestRedisPoolSizeArgOpt(t *testing.T) {
 	uri, _ := url.Parse("redis://myredis/0?poolsize=32")
 	opts := uriMustGetRedisOptions(uri)

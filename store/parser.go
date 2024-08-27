@@ -133,6 +133,8 @@ func getRedisOptions(uri *url.URL) (*redis.UniversalOptions, error) {
 			opts.MaxIdleConns, _ = strconv.Atoi(v[0])
 		case "maxredirects":
 			opts.MaxRedirects, _ = strconv.Atoi(v[0])
+		case "contexttimeoutenabled":
+			opts.ContextTimeoutEnabled, _ = strconv.ParseBool(v[0])
 		case "readonly":
 			opts.ReadOnly, _ = strconv.ParseBool(v[0])
 		case "routebylatency":
