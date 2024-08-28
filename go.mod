@@ -14,6 +14,8 @@ require (
 	github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611
 	github.com/gogo/googleapis v1.4.1
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/go-cleanhttp v0.5.2
+	github.com/redis/go-redis/extra/redisotel/v9 v9.5.3
 	github.com/stretchr/testify v1.9.0
 	github.com/zitadel/oidc/v3 v3.28.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.53.0
@@ -36,7 +38,6 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/prometheus/client_golang v1.20.1 // indirect
@@ -45,7 +46,6 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.5.3 // indirect
-	github.com/redis/go-redis/extra/redisotel/v9 v9.5.3 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect

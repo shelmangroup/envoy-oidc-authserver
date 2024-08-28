@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 	"net/http/httptrace"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -45,7 +45,7 @@ func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes 
 	var pkce bool
 
 	otelTransport := otelhttp.NewTransport(
-		http.DefaultTransport,
+		cleanhttp.DefaultPooledTransport(),
 		otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
 			return otelhttptrace.NewClientTrace(ctx)
 		}),
