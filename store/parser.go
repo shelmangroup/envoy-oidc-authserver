@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -53,6 +54,22 @@ func GetRedisClient(url *url.URL) (redis.UniversalClient, error) {
 		client = redis.NewClient(opts.Simple())
 	default:
 		return nil, fmt.Errorf("unknown scheme found in redis connection URL: %s", url.Scheme)
+	}
+
+	var tracing bool
+	for k, v := range url.Query() {
+		switch param := replacer.Replace(strings.ToLower(k)); param {
+		case "tracing":
+			tracing, _ = strconv.ParseBool(v[0])
+		default:
+			// do nothing
+		}
+	}
+
+	if tracing {
+		if err := redisotel.InstrumentTracing(client); err != nil {
+			return nil, err
+		}
 	}
 
 	return client, nil
@@ -149,6 +166,7 @@ func getRedisOptions(uri *url.URL) (*redis.UniversalOptions, error) {
 			opts.SentinelUsername = v[0]
 		case "sentinelpassword":
 			opts.SentinelPassword = v[0]
+		case "tracing":
 		default:
 			return nil, fmt.Errorf("detected unknown configuration option '%s'", param)
 		}

@@ -42,7 +42,7 @@ tasks:
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
       ENVOY_AUTHZ_SECRET_KEY: "G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t"
-      ENVOY_AUTHZ_REDIS_URL: "redis:///0"
+      ENVOY_AUTHZ_REDIS_URL: "redis:///0?tracing=true"
       ENVOY_AUTHZ_PROVIDERS_CONFIG: run/config/providers.yaml
       ENVOY_AUTHZ_LOG_LEVEL: debug
     cmds:

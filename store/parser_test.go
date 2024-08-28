@@ -462,6 +462,16 @@ func TestIPv6HostAddress(t *testing.T) {
 	}
 }
 
+func TestEnableTracing(t *testing.T) {
+	uri, _ := url.Parse("redis://myredis/0?tracing=true")
+	universalClient, err := GetRedisClient(uri)
+	_, ok := universalClient.(*redis.Client)
+
+	if err != nil || !ok {
+		t.Fail()
+	}
+}
+
 func TestConvertStringToDurationNoUnit(t *testing.T) {
 	uri, _ := url.Parse("redis://myredis/0?timeout=200")
 	opts := uriMustGetRedisOptions(uri)

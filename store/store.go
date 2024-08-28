@@ -10,7 +10,6 @@ import (
 	gocache_store "github.com/eko/gocache/store/go_cache/v4"
 	redis_store "github.com/eko/gocache/store/redis/v4"
 	gocache "github.com/patrickmn/go-cache"
-	"github.com/redis/go-redis/extra/redisotel/v9"
 )
 
 type Store struct {
@@ -31,9 +30,6 @@ func NewStore(url *url.URL, expiration time.Duration) *Store {
 	redisClient, err := GetRedisClient(url)
 	if err != nil {
 		slog.Error("Failed to connect to Redis", slog.String("err", err.Error()))
-		panic(err)
-	}
-	if err := redisotel.InstrumentTracing(redisClient); err != nil {
 		panic(err)
 	}
 
