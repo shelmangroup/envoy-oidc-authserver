@@ -23,8 +23,8 @@ services:
       - serve
       - /dex.yaml
 
-  redis:
-    image: docker.io/redis
+  valkey:
+    image: docker.io/valkey/valkey
     network_mode: host
 
   podinfo:
