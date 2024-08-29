@@ -20,7 +20,6 @@ import (
 	"connectrpc.com/otelconnect"
 	cache_store "github.com/eko/gocache/lib/v4/store"
 	"github.com/gogo/googleapis/google/rpc"
-	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -237,7 +236,7 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 			// This will redirect the client back to the first requested URL
 			// and request against the idp will be retried, which means less
 			// confusing for the user.
-			if err == oidc.ErrInvalidGrant() {
+			if strings.HasPrefix(err.Error(), `oauth2: "invalid_grant"`) {
 				slog.Error("Invalid grant", slog.String("url", requestedURL), slog.String("err", err.Error()))
 			} else {
 				return nil, err
