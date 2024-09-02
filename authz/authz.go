@@ -237,6 +237,9 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 			// and request against the idp will be retried, which means less
 			// confusing for the user.
 			if strings.HasPrefix(err.Error(), `oauth2: "invalid_grant"`) {
+				// Redirect the client back to the base URL
+				baseUrl, _ := url.Parse(provider.CallbackURI)
+				sessionData.RequestedUrl = baseUrl.Scheme + "://" + baseUrl.Host
 				slog.Error("Invalid grant",
 					slog.String("err", err.Error()),
 					slog.String("url", requestedURL),
