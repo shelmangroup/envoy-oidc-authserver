@@ -5,7 +5,6 @@ providers:
   #   clientID: client-id
   #   clientSecret: secret
   #   cookieNamePrefix: test
-  #   secureCookie: true
   #   scopes:
   #     - openid
   #     - profile

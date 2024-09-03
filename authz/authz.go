@@ -111,7 +111,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			attribute.String("cookie_name_prefix", provider.CookieNamePrefix),
 			attribute.String("pre_auth_policy", provider.PreAuthPolicy),
 			attribute.String("post_auth_policy", provider.PostAuthPolicy),
-			attribute.Bool("secure_cookie", provider.SecureCookie),
+			attribute.Bool("secure_cookie", provider.DisableSecureCookie),
 			attribute.StringSlice("scopes", provider.Scopes),
 			attribute.String("header_match_name", provider.HeaderMatch.Name),
 		),
@@ -283,9 +283,11 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to Idp"), nil
 	}
 
-	slog.Debug("setting authorization header to upstream request")
+	if !provider.DisablePassAuthorizationHeader {
+		slog.Debug("setting authorization header to upstream request")
+		headers = append(headers, s.setAuthorizationHeader(sessionData.IdToken))
+	}
 	span.SetStatus(codes.Ok, "success")
-	headers = append(headers, s.setAuthorizationHeader(sessionData.IdToken))
 	return s.authResponse(true, envoy_type.StatusCode_OK, headers, nil, "success"), nil
 }
 
@@ -394,13 +396,18 @@ func (s *Service) newSession(ctx context.Context, requestedURL, sessionCookieNam
 	codeChallenge := storeKey[43:]
 	idpAuthURL := provider.p.IdpAuthURL(codeChallenge)
 	headers = append(headers, s.setRedirectHeader(idpAuthURL))
+
 	// set cookie with session id and redirect to Idp
+	var secureCookie bool
+	if !provider.DisableSecureCookie {
+		secureCookie = true
+	}
 	cookie := &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    sessionToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   provider.SecureCookie,
+		Secure:   secureCookie,
 		SameSite: http.SameSiteLaxMode,
 	}
 

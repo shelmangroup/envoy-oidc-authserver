@@ -5,7 +5,8 @@ providers:
     clientID: podinfo
     # clientSecret: test1234 # omit for PKCE auth
     cookieNamePrefix: podinfo
-    # secureCookie: true # disable for local development
+    disableSecureCookie: true # disable for local development
+    # disablePassAuthorizationHeader: true # disable Authorization header passing to downstream service
     logout:
       redirectURI: http://localhost:5556/dex/end-session
       path: /_authz/logout
