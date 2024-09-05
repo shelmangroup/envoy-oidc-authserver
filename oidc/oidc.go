@@ -18,7 +18,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -58,6 +58,7 @@ func NewOIDCProvider(clientID, clientSecret, redirectURI, issuer string, scopes 
 	retryClient.RetryWaitMax = 8 * time.Second
 
 	options := []rp.Option{
+		rp.WithLogger(slog.Default()),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
 		rp.WithHTTPClient(retryClient.StandardClient()),
 	}
