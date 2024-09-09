@@ -13,7 +13,7 @@
         inherit system;
       };
       devPkgs = with pkgs; [
-        (golangci-lint.override { buildGoModule = buildGo123Module; })
+        golangci-lint
         buf
         delve
         git

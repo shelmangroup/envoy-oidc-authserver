@@ -1,6 +1,6 @@
 module github.com/shelmangroup/envoy-oidc-authserver
 
-go 1.23.0
+go 1.23.1
 
 require (
 	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.16.2-20240722201322-b1787804afc0.1
@@ -17,14 +17,14 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/redis/go-redis/extra/redisotel/v9 v9.5.3
 	github.com/stretchr/testify v1.9.0
-	github.com/zitadel/oidc/v3 v3.28.2
+	github.com/zitadel/oidc/v3 v3.29.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.54.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0
 	go.opentelemetry.io/otel v1.29.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.29.0
 	go.opentelemetry.io/otel/sdk v1.29.0
-	golang.org/x/net v0.28.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240827150818-7e3bb234dfed
+	golang.org/x/net v0.29.0
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1
 )
 
 require (
@@ -40,9 +40,9 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
-	github.com/prometheus/client_golang v1.20.2 // indirect
+	github.com/prometheus/client_golang v1.20.3 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.57.0 // indirect
+	github.com/prometheus/common v0.59.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.5.3 // indirect
@@ -56,7 +56,7 @@ require (
 )
 
 require (
-	buf.build/gen/go/cncf/xds/protocolbuffers/go v1.34.2-20240826200945-3fb04ab1c533.2 // indirect
+	buf.build/gen/go/cncf/xds/protocolbuffers/go v1.34.2-20240906201203-d50c7df89847.2 // indirect
 	buf.build/gen/go/envoyproxy/protoc-gen-validate/protocolbuffers/go v1.34.2-20240617172848-daf171c6cdb5.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -72,7 +72,7 @@ require (
 	github.com/matthewhartstonge/pkce v0.1.2
 	github.com/mattn/go-isatty v0.0.20
 	github.com/muhlemmer/gu v0.3.1 // indirect
-	github.com/open-policy-agent/opa v0.67.1
+	github.com/open-policy-agent/opa v0.68.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -84,12 +84,12 @@ require (
 	go.opentelemetry.io/otel/metric v1.29.0 // indirect
 	go.opentelemetry.io/otel/trace v1.29.0
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
-	golang.org/x/crypto v0.26.0
-	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948 // indirect
-	golang.org/x/oauth2 v0.22.0
-	golang.org/x/sys v0.24.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240827150818-7e3bb234dfed // indirect
+	golang.org/x/crypto v0.27.0
+	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e // indirect
+	golang.org/x/oauth2 v0.23.0
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
