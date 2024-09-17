@@ -283,6 +283,22 @@ func (s *Service) authProcess(ctx context.Context, req *auth.AttributeContext_Ht
 		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to Idp"), nil
 	}
 
+	if !provider.DisableSourceAddressCheck && sessionData.GetSourceAddress() != req.GetHeaders()["x-forwarded-for"] {
+		slog.Warn("source address mismatch", slog.String("session_address", sessionData.GetSourceAddress()), slog.String("request_address", req.GetHeaders()["x-forwarded-for"]))
+		storeKey, _ := session.VerifySessionToken(ctx, sessionToken, s.secretKey, s.sessionExpiration)
+		slog.Info("Deleting session", slog.String("key", storeKey))
+		if err := s.store.Delete(ctx, storeKey); err != nil {
+			return nil, err
+		}
+		headers, err := s.newSession(ctx, requestedURL, sessionCookieName, provider)
+		if err != nil {
+			span.RecordError(err, trace.WithStackTrace(true))
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
+		return s.authResponse(false, envoy_type.StatusCode_Found, headers, nil, "redirect to Idp"), nil
+	}
+
 	if !provider.DisablePassAuthorizationHeader {
 		slog.Debug("setting authorization header to upstream request")
 		headers = append(headers, s.setAuthorizationHeader(sessionData.IdToken))
@@ -455,6 +471,10 @@ func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeC
 	if err != nil {
 		slog.Error("error decrypt session data", slog.String("err", err.Error()))
 		return "", nil
+	}
+
+	if sessionData.GetSourceAddress() == "" {
+		sessionData.SourceAddress = req.GetHeaders()["x-forwarded-for"]
 	}
 
 	return sessionToken, sessionData

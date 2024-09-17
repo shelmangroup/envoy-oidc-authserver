@@ -7,4 +7,5 @@ message SessionData {
   string access_token = 2;
   string refresh_token = 3;
   string id_token = 4;
+  string source_address = 5;
 }

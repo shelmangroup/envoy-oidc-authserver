@@ -39,6 +39,7 @@ type OIDCProvider struct {
 	Scopes                         []string     `yaml:"scopes"`
 	DisableSecureCookie            bool         `yaml:"disableSecureCookie"`
 	DisablePassAuthorizationHeader bool         `yaml:"disablePassAuthorizationHeader"`
+	DisableSourceAddressCheck      bool         `yaml:"disableSourceAddressCheck"`
 }
 
 type HeaderMatch struct {
