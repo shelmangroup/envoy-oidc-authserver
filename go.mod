@@ -3,8 +3,8 @@ module github.com/shelmangroup/envoy-oidc-authserver
 go 1.23.1
 
 require (
-	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.16.2-20240722201322-b1787804afc0.1
-	buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go v1.34.2-20240722201322-b1787804afc0.2
+	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.16.2-20240916201701-df290ff9d48f.1
+	buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go v1.34.2-20240916201701-df290ff9d48f.2
 	connectrpc.com/connect v1.16.2
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
@@ -17,12 +17,12 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/redis/go-redis/extra/redisotel/v9 v9.5.3
 	github.com/stretchr/testify v1.9.0
-	github.com/zitadel/oidc/v3 v3.29.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.54.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0
-	go.opentelemetry.io/otel v1.29.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.29.0
-	go.opentelemetry.io/otel/sdk v1.29.0
+	github.com/zitadel/oidc/v3 v3.29.1
+	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.55.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.55.0
+	go.opentelemetry.io/otel v1.30.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.30.0
+	go.opentelemetry.io/otel/sdk v1.30.0
 	golang.org/x/net v0.29.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1
 )
@@ -40,7 +40,7 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
-	github.com/prometheus/client_golang v1.20.3 // indirect
+	github.com/prometheus/client_golang v1.20.4 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.59.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
@@ -51,7 +51,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/yashtewari/glob-intersection v0.2.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	google.golang.org/grpc v1.66.0 // indirect
+	google.golang.org/grpc v1.66.2 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
@@ -80,12 +80,12 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/zitadel/logging v0.6.0 // indirect
 	github.com/zitadel/schema v1.3.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.29.0 // indirect
-	go.opentelemetry.io/otel/metric v1.29.0 // indirect
-	go.opentelemetry.io/otel/trace v1.29.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.30.0 // indirect
+	go.opentelemetry.io/otel/metric v1.30.0 // indirect
+	go.opentelemetry.io/otel/trace v1.30.0
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	golang.org/x/crypto v0.27.0
-	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e // indirect
+	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
 	golang.org/x/oauth2 v0.23.0
 	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/text v0.18.0 // indirect
