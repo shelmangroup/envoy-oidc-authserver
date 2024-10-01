@@ -49,7 +49,7 @@
             CGO_ENABLED = "0";
 
             meta = {
-              desciption = "Envoy OIDC Authserver";
+              description = "Envoy OIDC Authserver";
               homepage = "https://github.com/shelmangroup/envoy-oidc-authserver";
               mainProgram = "envoy-oidc-authserver";
             };

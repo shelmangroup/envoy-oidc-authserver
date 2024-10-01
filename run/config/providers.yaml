@@ -27,6 +27,7 @@ providers:
       }
 
       bypass_auth if {
+        print("bypass", pre_authed)
         pre_authed
       }
 
@@ -43,6 +44,11 @@ providers:
 
       action_allowed if {
         httpreq.method == "GET"
+        glob.match("/headers", ["/"], httpreq.path)
+      }
+
+      action_allowed if {
+        httpreq.method == "GET"
         print("request path:", httpreq.path)
         glob.match("/", ["/"], httpreq.path)
       }
@@ -53,6 +59,10 @@ providers:
         now < token.payload.exp
         token.payload.email == "kilgore@kilgore.trout"
       }
+
+      headers["x-ext-authz-allow"] := "true" if { allow == true }
+      headers["x-ext-authz-pre-policy"] := "true"
+      headers["foo"] := "bar"
 
       jwks_request(url) := http.send({
         "url": url, "method": "GET", "force_cache": true, "force_cache_duration_seconds": 3600
@@ -65,6 +75,13 @@ providers:
         [_, payload, _] := io.jwt.decode(parsed_jwt)
       }
 
+      valid_tenents := { "securityteam", "devteam", "foo", "bar" }
+      token_payload_groups := [ "OpsTeam", "SecurityTeam" ]
+      groups_set := { lower(x) | x := token_payload_groups[_] }
+      groups := groups_set & valid_tenents
+
+      headers["X-Scope-OrgID"] := concat("|", array.concat(["fake"], [ x | x := groups[_] ]))
+
     postAuthPolicy: |
       package authz
       import rego.v1
@@ -74,6 +91,10 @@ providers:
       allow if {
         token.payload.email == "kilgore@kilgore.trout"
       }
+
+      headers["x-ext-authz-allow"] := "true" if { allow == true }
+      headers["x-ext-authz-post-policy"] := "true"
+      headers["foo"] := "baz"
 
       token := { "payload": payload } if {
         [_, payload, _] := io.jwt.decode(input.parsed_jwt)

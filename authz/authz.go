@@ -7,6 +7,7 @@ import (
 	"errors"
 	"html/template"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -116,6 +117,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			attribute.String("header_match_name", provider.HeaderMatch.Name),
 		),
 	)
+	var policyHeaders []*core.HeaderValueOption
 
 	// if PreAuthPolicy is defined evaluate the request
 	if provider.preAuthPolicy != nil {
@@ -126,22 +128,32 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 
-		allowed, bypassAuth, err := provider.preAuthPolicy.Eval(ctx, resInput)
+		decision, err := provider.preAuthPolicy.Eval(ctx, resInput)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
-		slog.Debug("PreAuth policy result", slog.Bool("allowed", allowed))
 
-		if !allowed {
+		if allowed, ok := decision["allow"].(bool); ok && !allowed {
 			span.SetStatus(codes.Error, "PreAuth policy denied the request")
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PreAuth policy denied the request")), nil
 		}
 
-		if bypassAuth {
+		// check for headers to add downstream from decision log
+		if h, ok := decision["headers"].(map[string]any); ok {
+			policyHeaders = s.addHeaders(h)
+
+			hv := make(map[string]string)
+			for k, v := range h {
+				hv[k] = v.(string)
+			}
+			maps.Copy(httpReq.Headers, hv)
+		}
+
+		if bypass, ok := decision["bypass_auth"].(bool); ok && bypass {
 			span.SetStatus(codes.Ok, "bypassAuth policy allowed the request")
-			return connect.NewResponse(s.authResponse(true, envoy_type.StatusCode_OK, nil, nil, "skipAuth policy allowed the request")), nil
+			return connect.NewResponse(s.authResponse(true, envoy_type.StatusCode_OK, policyHeaders, nil, "")), nil
 		}
 	}
 
@@ -162,16 +174,26 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
 
-		allowed, _, err := provider.postAuthPolicy.Eval(ctx, respInput)
+		decision, err := provider.postAuthPolicy.Eval(ctx, respInput)
 		if err != nil {
 			span.RecordError(err, trace.WithStackTrace(true))
 			span.SetStatus(codes.Error, err.Error())
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_BadGateway, nil, nil, err.Error())), nil
 		}
-		if !allowed {
+
+		if allowed, ok := decision["allow"].(bool); ok && !allowed {
 			span.SetStatus(codes.Error, "PostAuth policy denied the request")
 			return connect.NewResponse(s.authResponse(false, envoy_type.StatusCode_Forbidden, nil, nil, "PostAuth policy denied the request")), nil
 		}
+
+		if h, ok := decision["headers"].(map[string]any); ok {
+			policyHeaders = append(policyHeaders, s.addHeaders(h)...)
+		}
+	}
+
+	// if OkResponse add policy headers if any
+	if resp.GetStatus().GetCode() == int32(rpc.OK) && len(policyHeaders) > 0 {
+		resp.GetOkResponse().Headers = append(resp.GetOkResponse().Headers, policyHeaders...)
 	}
 
 	// Return response to envoy
@@ -534,6 +556,19 @@ func (s *Service) setAuthorizationHeader(token string) *core.HeaderValueOption {
 			Value: "Bearer " + token,
 		},
 	}
+}
+
+func (s *Service) addHeaders(h map[string]any) []*core.HeaderValueOption {
+	var headers []*core.HeaderValueOption
+	for k, v := range h {
+		headers = append(headers, &core.HeaderValueOption{
+			Header: &core.HeaderValue{
+				Key:   k,
+				Value: v.(string),
+			},
+		})
+	}
+	return headers
 }
 
 func (s *Service) getCodeQueryParam(fullURL string) (string, error) {

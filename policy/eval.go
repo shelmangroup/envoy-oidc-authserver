@@ -48,18 +48,12 @@ func (h tracePrintHook) Print(c print.Context, msg string) error {
 // NewPolicy creates a new Policy with the given policy.
 func NewPolicy(name, policy string) (*Policy, error) {
 	ctx := context.Background()
-	query := "allow = data.authz.allow"
-	// Allow skipAuth for PreAuth policy
-	if name == "PreAuth" {
-		query = "allow = data.authz.allow; bypass_auth = data.authz.bypass_auth"
-	}
-
 	ph := &tracePrintHook{
 		Name: name,
 	}
 
 	r, err := rego.New(
-		rego.Query(query),
+		rego.Query("data.authz"),
 		rego.Module("OpenPolicyAgent", policy),
 		rego.EnablePrintStatements(true),
 		rego.PrintHook(ph),
@@ -75,8 +69,8 @@ func NewPolicy(name, policy string) (*Policy, error) {
 	}, nil
 }
 
-// Eval evaluates the policy with the given input and returns the result.
-func (p *Policy) Eval(ctx context.Context, input map[string]any) (bool, bool, error) {
+// Eval evaluates the policy with the given input and returns the decision log.
+func (p *Policy) Eval(ctx context.Context, input map[string]any) (map[string]any, error) {
 	ctx, span := tracer.Start(ctx, p.name+"PolicyEval")
 	defer span.End()
 
@@ -91,37 +85,24 @@ func (p *Policy) Eval(ctx context.Context, input map[string]any) (bool, bool, er
 	if err != nil {
 		span.RecordError(err, trace.WithStackTrace(true))
 		span.SetStatus(codes.Error, err.Error())
-		return false, false, err
+		return nil, err
 	}
 
 	if len(rs) == 0 {
-		return false, false, errors.New("no results returned! No default value for `allow` and/or `bypass_auth` in policy?")
+		return nil, errors.New("no results returned! No default value for `allow` and/or `bypass_auth` in policy?")
 	}
 
-	allow, ok := rs[0].Bindings["allow"].(bool)
-	if !ok {
-		return false, false, errors.New("no allow result")
+	var decision map[string]interface{}
+	switch d := rs[0].Expressions[0].Value.(type) {
+	case map[string]interface{}:
+		decision = d
+	default:
+		return nil, errors.New("invalid decision type")
 	}
 
-	if !allow {
-		span.SetStatus(codes.Error, "policy denied")
-		return false, false, nil
-	}
+	slog.Debug("policy eval", slog.Any("decision_log", decision))
 
-	bypassAuth, ok := rs[0].Bindings["bypass_auth"].(bool)
-	if !ok {
-		bypassAuth = false
-	}
-
-	span.AddEvent("decision_log",
-		trace.WithAttributes(
-			attribute.Bool("allowed", allow),
-			attribute.Bool("bypass_auth", bypassAuth),
-		),
-	)
-
-	span.SetStatus(codes.Ok, "allowed")
-	return allow, bypassAuth, nil
+	return decision, nil
 }
 
 func RequestOrResponseToInput(req any) (map[string]any, error) {

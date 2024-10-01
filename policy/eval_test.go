@@ -80,9 +80,11 @@ func TestEvalCheckRequest(t *testing.T) {
 			_, err = RequestOrResponseToInput(nil)
 			require.Error(t, err)
 
-			allowed, bypass, err := p.Eval(ctx, input)
+			decision, err := p.Eval(ctx, input)
 			require.NoError(t, err)
+			allowed := decision["allow"].(bool)
 			require.Equal(t, scenario.expected, allowed)
+			bypass := decision["bypass_auth"].(bool)
 			require.Equal(t, scenario.expected, bypass)
 		})
 	}
@@ -124,8 +126,9 @@ func TestEvalCheckResponse(t *testing.T) {
 			input, err := RequestOrResponseToInput(res)
 			require.NoError(t, err)
 
-			allowed, _, err := p.Eval(ctx, input)
+			decision, err := p.Eval(ctx, input)
 			require.NoError(t, err)
+			allowed := decision["allow"].(bool)
 			require.Equal(t, scenario.expected, allowed)
 		})
 	}
