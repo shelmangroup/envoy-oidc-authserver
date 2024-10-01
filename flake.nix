@@ -38,11 +38,13 @@
         ];
       in
       {
+
         packages = rec {
           default = pkgs.buildGo123Module {
             pname = "envoy-oidc-authserver";
             version = "main";
             src = ./.;
+
             ldflags = [ "-s -w" ];
             CGO_ENABLED = "0";
 
