@@ -6,8 +6,14 @@
     utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, utils }:
-    utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      utils,
+    }:
+    utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -30,6 +36,24 @@
         ];
       in
       {
+        packages.default = pkgs.buildGo123Module {
+          pname = "envoy-oidc-authserver";
+          version = "main";
+          src = ./.;
+
+          # vendorHash = ""; # Use this when upgrading dependencies
+          vendorHash = "sha256-n7+O+uc8YRnhXccVVnKE6zK8kh8EGiKeiES4A+R1Dhg=";
+
+          nativeBuildInputs = with pkgs; [
+            buf
+            protoc-gen-go
+          ];
+
+          prePatch = ''
+            HOME="$TMPDIR" ${pkgs.buf}/bin/buf generate
+          '';
+        };
+
         devShells = {
           default = pkgs.mkShell {
             LOCALE_ARCHIVE = "${pkgs.glibcLocales}/lib/locale/locale-archive";
