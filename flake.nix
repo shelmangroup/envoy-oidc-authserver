@@ -38,11 +38,15 @@
         ];
       in
       {
-        packages = {
+
+        packages = rec {
           default = pkgs.buildGo123Module {
             pname = "envoy-oidc-authserver";
             version = "main";
             src = ./.;
+
+            ldflags = [ "-s -w" ];
+            CGO_ENABLED = "0";
 
             meta = {
               desciption = "Envoy OIDC Authserver";
@@ -61,13 +65,17 @@
             prePatch = ''
               HOME="$TMPDIR" ${pkgs.buf}/bin/buf generate
             '';
+
+            postInstall = ''
+              ${pkgs.upx}/bin/upx $out/bin/envoy-oidc-authserver
+            '';
           };
 
           container = pkgs.dockerTools.buildImage {
             name = "envoy-oidc-authserver";
             tag = "latest";
-            copyToRoot = [ self.packages.${system}.default ];
-            config.Entrypoint = [ (lib.getExe self.packages.${system}.default) ];
+            copyToRoot = [ default ];
+            config.Entrypoint = [ "${default}/bin/envoy-oidc-authserver" ];
           };
         };
 
