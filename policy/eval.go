@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -101,6 +102,13 @@ func (p *Policy) Eval(ctx context.Context, input map[string]any) (map[string]any
 	}
 
 	slog.Debug("policy eval", slog.Any("decision_log", decision))
+
+	// Span event for decision log
+	span.AddEvent("Policy evaluation",
+		trace.WithAttributes(
+			attribute.String("decision log", fmt.Sprint(decision)),
+		),
+	)
 
 	return decision, nil
 }
