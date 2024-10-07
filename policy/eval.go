@@ -22,6 +22,8 @@ import (
 
 var tracer = otel.Tracer("policy")
 
+const PolicyQuery = "data.authz"
+
 type Policy struct {
 	q      rego.PreparedEvalQuery
 	icache iCache.InterQueryCache
@@ -46,19 +48,18 @@ func (h tracePrintHook) Print(c print.Context, msg string) error {
 	return nil
 }
 
-// NewPolicy creates a new Policy with the given policy.
+// NewPolicy creates a policy from the given policy document
 func NewPolicy(name, policy string) (*Policy, error) {
-	ctx := context.Background()
 	ph := &tracePrintHook{
 		Name: name,
 	}
 
 	r, err := rego.New(
-		rego.Query("data.authz"),
+		rego.Query(PolicyQuery),
 		rego.Module("OpenPolicyAgent", policy),
 		rego.EnablePrintStatements(true),
 		rego.PrintHook(ph),
-	).PrepareForEval(ctx)
+	).PrepareForEval(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -90,14 +91,16 @@ func (p *Policy) Eval(ctx context.Context, input map[string]any) (map[string]any
 	}
 
 	if len(rs) == 0 {
-		return nil, errors.New("no results returned! No default value for `allow` and/or `bypass_auth` in policy?")
+		span.SetStatus(codes.Error, "no results returned")
+		return nil, errors.New("no results returned")
 	}
 
-	var decision map[string]interface{}
+	var decision map[string]any
 	switch d := rs[0].Expressions[0].Value.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		decision = d
 	default:
+		span.SetStatus(codes.Error, "invalid decision type")
 		return nil, errors.New("invalid decision type")
 	}
 
@@ -109,12 +112,13 @@ func (p *Policy) Eval(ctx context.Context, input map[string]any) (map[string]any
 			attribute.String("decision log", fmt.Sprint(decision)),
 		),
 	)
+	span.SetStatus(codes.Ok, "ok")
 
 	return decision, nil
 }
 
 func RequestOrResponseToInput(req any) (map[string]any, error) {
-	var input map[string]interface{}
+	var input map[string]any
 
 	// type switch for CheckRequest or CheckResponse
 	switch v := req.(type) {

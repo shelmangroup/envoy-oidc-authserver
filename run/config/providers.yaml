@@ -61,6 +61,7 @@ providers:
       }
 
       headers["x-ext-authz-allow"] := "true" if { allow == true }
+      headers["x-ext-authz-bypass-auth"] := "true" if { bypass_auth == true }
       headers["x-ext-authz-pre-policy"] := "true"
       headers["foo"] := "bar"
 
