@@ -1,4 +1,57 @@
 sessionExpiration: 48h
+errorTemplateContentType: text/html; charset=utf-8
+errorTemplate: |
+  <html>
+  <head>
+    <title>Something went wrong</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata&display=swap" rel="stylesheet">
+    <style>
+      body {
+        background-color: #f0f0f0;
+        color: white;
+        text-align: center;
+        font-family: 'Inconsolata', monospace;
+      }
+    
+      .main {
+        display: block;
+        position: relative;
+        margin: 50px auto 0 auto;
+        width: 600px;
+      }
+    
+      .main h1 {
+        font-size: 30px;
+        line-height: 60px;
+        color: #333;
+      }
+    
+      .box {
+        width: 400px;
+        display: flex;
+        border: 2px solid #000;
+        margin: 0 auto 15px;
+        text-align: center;
+        padding: 30px;
+        font-weight: bold;
+        border-radius: 10px;
+      }
+    
+      .error {
+        background-color: #EBB1B1;
+        border-color: #973939;
+        color: #973939;
+      }
+    </style>
+  </head>
+    <body>
+      <div class="main">
+        <h1>🚨 Don't call us, we'll call you!😸</h1>
+        <div class="box error">{{.Message}}</div>
+      </div>
+    </body>
+  </html>
+
 providers:
   - issuerURL: http://localhost:5556/dex
     callbackURI: http://localhost:8000/_authz/callback

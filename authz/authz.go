@@ -593,6 +593,11 @@ func (s *Service) authResponse(success bool, httpStatusCode envoy_type.StatusCod
 			},
 		}
 	}
+	errorContentType := "text/plain"
+	if s.cfg.ErrorTemplateContentType != "" {
+		errorContentType = s.cfg.ErrorTemplateContentType
+	}
+
 	return &auth.CheckResponse{
 		Status: &rpcstatus.Status{
 			Code: int32(rpc.PERMISSION_DENIED),
@@ -606,76 +611,29 @@ func (s *Service) authResponse(success bool, httpStatusCode envoy_type.StatusCod
 					&core.HeaderValueOption{
 						Header: &core.HeaderValue{
 							Key:   "Content-Type",
-							Value: "text/html; charset=utf-8",
+							Value: errorContentType,
 						},
 					}),
-				Body: s.genErrorHtmlPage(body),
+				Body: s.genErrorTemplate(body),
 			},
 		},
 	}
 }
 
-func (s *Service) genErrorHtmlPage(msg string) string {
+func (s *Service) genErrorTemplate(msg string) string {
 	tplData := struct {
 		Message string
 	}{
 		Message: msg,
 	}
 
+	errorTemplate := `envoy-oidc-authserver error: {{ .Message }}`
+	if s.cfg.ErrorTemplate != "" {
+		errorTemplate = s.cfg.ErrorTemplate
+	}
+
 	// Define our template
-	t := template.Must(template.New("error").Parse(`
-    <!DOCTYPE html>
-    <html>
-     <head>
-      <title>Error</title>
-      <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
-      <style>
-        body {
-          background-color: #333;
-          color: white;
-          text-align: center;
-          font-family: 'Fira Code', monospace;
-        }
-
-        .main {
-          display: block;
-          position: relative;
-          margin: 50px auto 0 auto;
-          width: 600px;
-        }
-
-        .main h1 {
-          font-size: 80px;
-          line-height: 36px;
-          color: #fff;
-        }
-
-        .box {
-          width: 400px;
-          display: flex;
-          border: 2px solid #000;
-          margin: 0 auto 15px;
-          text-align: center;
-          padding: 30px;
-          font-weight: bold;
-          border-radius: 10px;
-        }
-
-        .error {
-          background-color: #EBB1B1;
-          border-color: #973939;
-          color: #973939;
-        }
-      </style>
-     </head>
-     <body>
-      <div class="main">
-      <h1>$#*!🤦</h1>
-        <div class="error box"> {{ .Message }} </div>
-      </div>
-     </body>
-    </html>
-  `))
+	t := template.Must(template.New("error").Parse(errorTemplate))
 
 	// Render our template
 	body := new(bytes.Buffer)

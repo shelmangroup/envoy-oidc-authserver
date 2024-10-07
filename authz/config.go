@@ -13,8 +13,10 @@ import (
 )
 
 type Config struct {
-	SessionExpiration string         `yaml:"sessionExpiration"`
-	Providers         []OIDCProvider `yaml:"providers"`
+	SessionExpiration        string         `yaml:"sessionExpiration"`
+	ErrorTemplate            string         `yaml:"errorTemplate"`
+	ErrorTemplateContentType string         `yaml:"errorTemplateContentType"`
+	Providers                []OIDCProvider `yaml:"providers"`
 }
 
 type LogoutConfig struct {
@@ -23,16 +25,15 @@ type LogoutConfig struct {
 }
 
 type OIDCProvider struct {
-	p              oidc.UnimplementedAuthProvider
-	preAuthPolicy  *policy.Policy
-	postAuthPolicy *policy.Policy
-
+	p                              oidc.UnimplementedAuthProvider
+	preAuthPolicy                  *policy.Policy
+	postAuthPolicy                 *policy.Policy
 	HeaderMatch                    HeaderMatch  `yaml:"headerMatch"`
 	Logout                         LogoutConfig `yaml:"logout"`
-	ClientID                       string       `yaml:"clientID"`
+	CookieNamePrefix               string       `yaml:"cookieNamePrefix"`
 	CallbackURI                    string       `yaml:"callbackURI"`
 	ClientSecret                   string       `yaml:"clientSecret"`
-	CookieNamePrefix               string       `yaml:"cookieNamePrefix"`
+	ClientID                       string       `yaml:"clientID"`
 	PreAuthPolicy                  string       `yaml:"preAuthPolicy"`
 	PostAuthPolicy                 string       `yaml:"postAuthPolicy"`
 	IssuerURL                      string       `yaml:"issuerURL"`
