@@ -107,3 +107,16 @@ static_resources:
                     socket_address:
                       address: localhost
                       port_value: 8080
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+          sni: localhost
+          common_tls_context:
+            validation_context:
+              match_typed_subject_alt_names:
+                - san_type: DNS
+                  matcher:
+                    exact: "localhost"
+              trusted_ca:
+                filename: /rootCA.pem

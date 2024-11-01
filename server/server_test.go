@@ -22,10 +22,10 @@ func (s *dummyService) Name() string {
 // TestServer
 func TestServer(t *testing.T) {
 	// Should panic if no service is provided
-	assert.Panics(t, func() { NewServer("127.0.0.1:8080", nil) })
+	assert.Panics(t, func() { NewServer("127.0.0.1:8080", "", "", nil) })
 
 	// register dummy service which implements Service interface
-	s := NewServer("127.0.0.1:8080", &dummyService{})
+	s := NewServer("127.0.0.1:8080", "", "", &dummyService{})
 	assert.NotNil(t, s)
 	assert.NoError(t, s.Shutdown())
 }

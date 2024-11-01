@@ -35,6 +35,7 @@
           protobuf
           protoc-gen-go
           watchexec
+          mkcert
         ];
       in
       {

@@ -2,9 +2,10 @@ version: "3"
 
 services:
   envoy:
-    image: docker.io/envoyproxy/envoy:v1.30-latest
+    image: docker.io/envoyproxy/envoy:v1.32-latest
     volumes:
       - ./run/config/envoy.yaml:/envoy.yaml
+      - "$HOME/.local/share/mkcert/rootCA.pem:/rootCA.pem"
     depends_on:
       podinfo:
         condition: service_healthy

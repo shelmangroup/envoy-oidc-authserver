@@ -25,6 +25,8 @@ func main() {
 	redisURL := fs.String('r', "redis-url", "", "URL to use for Redis cache, omit for in memory cache")
 	secretKey := fs.StringLong("secret-key", "", "secret key used to encrypt session tokens")
 	providersConfig := fs.String('c', "providers-config", "", "OIDC procider configuration file")
+	tlsServerCertFile := fs.StringLong("tls-server-cert-file", "", "TLS server certificate file")
+	tlsServerKeyFile := fs.StringLong("tls-server-key-file", "", "TLS server key file")
 	logJson := fs.BoolLong("log-json", "log in JSON format")
 	logLevel := fs.StringLong("log-level", "info", "log level (debug, info, warn, error)")
 
@@ -83,7 +85,7 @@ func main() {
 	}
 
 	// Create new server
-	s := server.NewServer(*addr, authz.NewService(c, *secretKey, u))
+	s := server.NewServer(*addr, *tlsServerCertFile, *tlsServerKeyFile, authz.NewService(c, *secretKey, u))
 	defer func() {
 		err := s.Shutdown()
 		if err != nil {

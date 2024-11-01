@@ -19,10 +19,12 @@ type Service interface {
 
 type Server struct {
 	httpServer *http.Server
+	certFile   string
+	keyFile    string
 }
 
 // NewServer creates a new server instance
-func NewServer(httpAddr string, services ...Service) *Server {
+func NewServer(httpAddr string, certFile, keyFile string, services ...Service) *Server {
 	mux := http.NewServeMux()
 
 	// Register service handlers
@@ -51,10 +53,17 @@ func NewServer(httpAddr string, services ...Service) *Server {
 
 	return &Server{
 		httpServer: httpServer,
+		certFile:   certFile,
+		keyFile:    keyFile,
 	}
 }
 
 func (s *Server) Serve() error {
+	if s.certFile != "" && s.keyFile != "" {
+		slog.Info("Start HTTPS server", slog.String("addr", s.httpServer.Addr))
+		return s.httpServer.ListenAndServeTLS(s.certFile, s.keyFile)
+	}
+
 	slog.Info("Start HTTP server", slog.String("addr", s.httpServer.Addr))
 	return s.httpServer.ListenAndServe()
 }

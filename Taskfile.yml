@@ -36,14 +36,21 @@ tasks:
     cmds:
       - watchexec --clear --restart --stop-signal INT --debounce 300ms -- task dev:server
 
+  dev:gen-tls:
+    desc: Generate TLS certificates
+    cmds:
+      - ls *.pem || mkcert localhost
+
   dev:server:
     desc: Run envoy-oidc-authserver for local development
-    deps: [buf:generate]
+    deps: [buf:generate, dev:gen-tls]
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
       ENVOY_AUTHZ_SECRET_KEY: "G_TdvPJ9T8C4p&A?Wr3YAUYW$*9vn4?t"
       ENVOY_AUTHZ_REDIS_URL: "redis:///0?tracing=true"
       ENVOY_AUTHZ_PROVIDERS_CONFIG: run/config/providers.yaml
+      ENVOY_AUTHZ_TLS_SERVER_CERT_FILE: localhost.pem
+      ENVOY_AUTHZ_TLS_SERVER_KEY_FILE: localhost-key.pem
       ENVOY_AUTHZ_LOG_LEVEL: debug
     cmds:
       - go run .
