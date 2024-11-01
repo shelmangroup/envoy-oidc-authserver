@@ -3,4 +3,6 @@
 .task
 internal
 coverage.out
+localhost-key.pem
+localhost.pem
 envoy-oidc-authserver
