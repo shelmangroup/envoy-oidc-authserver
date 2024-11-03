@@ -44,6 +44,11 @@ func NewServer(httpAddr string, certFile, keyFile string, services ...Service) *
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
+	// HTTP Health check endpoint
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
 	// Create a new HTTP server
 	httpServer := &http.Server{
 		Addr:              httpAddr,
