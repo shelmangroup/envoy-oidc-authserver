@@ -112,7 +112,7 @@ func (s *Service) Check(ctx context.Context, req *connect.Request[auth.CheckRequ
 			attribute.String("cookie_name_prefix", provider.CookieNamePrefix),
 			attribute.String("pre_auth_policy", provider.PreAuthPolicy),
 			attribute.String("post_auth_policy", provider.PostAuthPolicy),
-			attribute.Bool("secure_cookie", provider.DisableSecureCookie),
+			attribute.Bool("disable_secure_cookie", provider.DisableSecureCookie),
 			attribute.StringSlice("scopes", provider.Scopes),
 			attribute.String("header_match_name", provider.HeaderMatch.Name),
 		),
