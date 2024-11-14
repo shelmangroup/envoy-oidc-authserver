@@ -478,7 +478,7 @@ func (s *Service) getSessionCookieData(ctx context.Context, req *auth.AttributeC
 
 	enc, err := s.store.Get(ctx, storeKey)
 	if err != nil {
-		slog.Warn("error getting session data from cache", slog.String("err", err.Error()))
+		slog.Debug("error getting session data from cache", slog.String("err", err.Error()))
 		return "", nil
 	}
 
