@@ -10,7 +10,7 @@ import (
 	auth "buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go/envoy/service/auth/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown/builtins"
-	iCache "github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/util"
 	"go.opentelemetry.io/otel"
@@ -24,10 +24,12 @@ var tracer = otel.Tracer("policy")
 
 const PolicyQuery = "data.authz"
 
+type DecisionLog map[string]any
+
 type Policy struct {
-	q      rego.PreparedEvalQuery
-	icache iCache.InterQueryCache
-	name   string
+	q          rego.PreparedEvalQuery
+	queryCache cache.InterQueryCache
+	name       string
 }
 
 type tracePrintHook struct {
@@ -65,23 +67,25 @@ func NewPolicy(name, policy string) (*Policy, error) {
 	}
 
 	return &Policy{
-		q:      r,
-		icache: iCache.NewInterQueryCache(nil),
-		name:   name,
+		q:          r,
+		queryCache: cache.NewInterQueryCache(nil),
+		name:       name,
 	}, nil
 }
 
 // Eval evaluates the policy with the given input and returns the decision log.
-func (p *Policy) Eval(ctx context.Context, input map[string]any) (map[string]any, error) {
+func (p *Policy) Eval(ctx context.Context, input map[string]any) (DecisionLog, error) {
 	ctx, span := tracer.Start(ctx, p.name+"PolicyEval")
 	defer span.End()
+
+	var decision DecisionLog
 
 	slog.Debug("policy", slog.Any("input", input))
 
 	rs, err := p.q.Eval(
 		ctx,
 		rego.EvalInput(input),
-		rego.EvalInterQueryBuiltinCache(p.icache),
+		rego.EvalInterQueryBuiltinCache(p.queryCache),
 		rego.EvalNDBuiltinCache(builtins.NDBCache{}),
 	)
 	if err != nil {
@@ -95,7 +99,6 @@ func (p *Policy) Eval(ctx context.Context, input map[string]any) (map[string]any
 		return nil, errors.New("no results returned")
 	}
 
-	var decision map[string]any
 	switch d := rs[0].Expressions[0].Value.(type) {
 	case map[string]any:
 		decision = d
