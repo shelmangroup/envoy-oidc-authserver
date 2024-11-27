@@ -1,10 +1,10 @@
 module github.com/shelmangroup/envoy-oidc-authserver
 
-go 1.23.2
+go 1.23.3
 
 require (
 	buf.build/gen/go/envoyproxy/envoy/connectrpc/go v1.17.0-20241030201811-f4186689fbef.1
-	buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go v1.35.1-20241030201811-f4186689fbef.1
+	buf.build/gen/go/envoyproxy/envoy/protocolbuffers/go v1.35.2-20241030201811-f4186689fbef.1
 	connectrpc.com/connect v1.17.0
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
@@ -24,7 +24,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.32.0
 	go.opentelemetry.io/otel/sdk v1.32.0
 	golang.org/x/net v0.31.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241113202542-65e8d215514f
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241118233622-e639e219e697
 )
 
 require (
@@ -56,8 +56,8 @@ require (
 )
 
 require (
-	buf.build/gen/go/cncf/xds/protocolbuffers/go v1.35.1-20240906201203-d50c7df89847.1 // indirect
-	buf.build/gen/go/envoyproxy/protoc-gen-validate/protocolbuffers/go v1.35.1-20240617172848-daf171c6cdb5.1 // indirect
+	buf.build/gen/go/cncf/xds/protocolbuffers/go v1.35.2-20240906201203-d50c7df89847.1 // indirect
+	buf.build/gen/go/envoyproxy/protoc-gen-validate/protocolbuffers/go v1.35.2-20240617172848-daf171c6cdb5.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/eko/gocache/store/go_cache/v4 v4.2.2
@@ -66,7 +66,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.23.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.24.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/lmittmann/tint v1.0.5
 	github.com/matthewhartstonge/pkce v0.1.2
@@ -89,7 +89,7 @@ require (
 	golang.org/x/oauth2 v0.24.0
 	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20241113202542-65e8d215514f // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/protobuf v1.35.2
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
