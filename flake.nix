@@ -26,6 +26,7 @@
           delve
           git
           go_1_23
+          gopls
           go-task
           golines
           goreleaser
