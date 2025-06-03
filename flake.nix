@@ -25,7 +25,7 @@
           buf
           delve
           git
-          go_1_23
+          go_1_24
           gopls
           go-task
           golines
